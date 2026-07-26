@@ -42,42 +42,31 @@ class Game {
     this.state = "menu";
     this._last = performance.now();
     this._ordered = false;
-    /** Desktop: pausa ao sair da aba / perder pointer lock até clicar de novo. */
-    this._softPaused = false;
 
     this.btnPlay.addEventListener("click", () => {
       this.sfx.resume();
       this.sfx.click();
       this.start();
     });
-    this.canvas.addEventListener("click", () => {
-      if (this.state === "playing" && !this.dialogue.open && !this.input.mobile) {
-        this._softPaused = false;
-        this.input.clearHeld();
-        this.sfx.resume();
-        this.input.requestLock();
-      }
-    });
+    // pointerdown recupera o olhar após Alt+Tab (WASD já funciona sem lock)
+    const tryRelock = (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (this.state !== "playing" || this.dialogue.open || this.input.mobile) return;
+      this.sfx.resume();
+      this.input.requestLock();
+    };
+    window.addEventListener("pointerdown", tryRelock, true);
     this.input.onLockLost = () => {
-      if (this.input.mobile) return;
-      if (this.state !== "playing" && this.state !== "dialogue") return;
-      this._softPaused = true;
       this.input.clearHeld();
     };
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         this.input.clearHeld();
-        if (!this.input.mobile && this.state === "playing") this._softPaused = true;
         return;
       }
-      // Voltou pra aba: zera dt e teclas; precisa clicar de novo (pointer lock exige gesto)
       this._last = performance.now();
       this.input.clearHeld();
       this.sfx.resume();
-      if (!this.input.mobile && this.state === "playing" && !this.dialogue.open) {
-        this._softPaused = true;
-        this.hud.showToast("Clique na tela para continuar.", 3200);
-      }
     });
     window.addEventListener("resize", () => this._onResize());
 
@@ -94,7 +83,6 @@ class Game {
     this.menu.setAttribute("aria-hidden", "true");
     this.hud.show();
     this.state = "playing";
-    this._softPaused = false;
     this.player.position.set(0.5, CONFIG.eyeHeight, 7.2);
     this.player.yaw = Math.PI;
     this.player.pitch = -0.05;
@@ -134,7 +122,6 @@ class Game {
     if (this.input.consumeEscape()) {
       if (inDialogue) {
         this.dialogue.close();
-        this._softPaused = false;
         this.input.requestLock();
       } else if (this.player.sitting) {
         this.player.standUp();
@@ -142,20 +129,16 @@ class Game {
         this.hud.showToast("Levantou da mesa.", 1600);
       } else if (!this.input.mobile) {
         this.input.exitLock();
-        this._softPaused = true;
       }
     }
 
-    const needsClick = playing && !this.input.mobile && (!this.input.locked || this._softPaused);
-    this.hud.setClickHint(needsClick);
-
     // Mobile: sempre “locked” — sem pointer lock no celular
     if (this.input.mobile) this.input.locked = true;
-    if (this.input.locked && !this.input.mobile) this._softPaused = false;
 
-    const canLookMove =
-      playing && !this._softPaused && (this.input.locked || this.input.mobile);
-    this.player.update(dt, this.input, canLookMove && !this.player.sitting);
+    // Desktop: WASD sempre; olhar só com pointer lock (clique recupera após sair da aba)
+    const canMove = playing;
+    const canLook = playing && (this.input.locked || this.input.mobile);
+    this.player.update(dt, this.input, canMove && !this.player.sitting, canLook);
 
     let target = null;
     if (playing) {
@@ -232,7 +215,6 @@ class Game {
       },
       (action) => {
         this.state = "playing";
-        this._softPaused = false;
         if (action === "order") {
           this._ordered = true;
           this.sfx.order();
@@ -289,7 +271,6 @@ class Game {
       },
       (action) => {
         this.state = "playing";
-        this._softPaused = false;
         if (action) {
           this._ordered = true;
           this.sfx.order();

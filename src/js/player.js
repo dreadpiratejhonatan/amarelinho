@@ -46,9 +46,9 @@ export class Player {
     this.velY = 0;
   }
 
-  update(dt, input, canMove) {
+  update(dt, input, canMove, canLook = canMove) {
     const look = input.consumeLook();
-    if (canMove || this.sitting) {
+    if (canLook || this.sitting) {
       this.yaw -= look.dx * CONFIG.mouseSens;
       this.pitch -= look.dy * CONFIG.mouseSens;
       this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch));

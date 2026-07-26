@@ -268,20 +268,6 @@ html, body {
   color: rgba(255, 246, 214, 0.5);
 }
 
-.click-hint {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 20;
-  padding: 14px 20px;
-  background: var(--panel);
-  border: 1px solid rgba(255, 216, 74, 0.4);
-  border-radius: 10px;
-  font-weight: 600;
-  pointer-events: none;
-}
-
 /* Touch controls — layout mobile-first */
 .touch {
   position: fixed;

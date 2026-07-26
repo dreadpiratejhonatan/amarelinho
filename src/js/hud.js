@@ -3,7 +3,6 @@ export class HUD {
     this.root = document.getElementById("hud");
     this.prompt = document.getElementById("prompt");
     this.toast = document.getElementById("toast");
-    this.clickHint = document.getElementById("click-hint");
     this._toastTimer = 0;
   }
 
@@ -32,9 +31,5 @@ export class HUD {
     this._toastTimer = setTimeout(() => {
       this.toast.hidden = true;
     }, ms);
-  }
-
-  setClickHint(on) {
-    this.clickHint.hidden = !on;
   }
 }
