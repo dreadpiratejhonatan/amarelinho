@@ -30,7 +30,7 @@ export class TouchControls {
     this.enabled = false;
     /** Velocidade do stick de olhar (px-equivalente / s no fundo do stick).
      *  A sensibilidade dos Ajustes multiplica depois no player. */
-    this.lookStickRate = 280;
+    this.lookStickRate = 900;
     this._joyId = null;
     this._lookJoyId = null;
     this._btnPtrId = null;
