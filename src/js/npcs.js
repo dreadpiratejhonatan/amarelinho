@@ -112,11 +112,12 @@ export const WAITERS = [
         "Calçada lotada, TV ligada… noite típica de Amarelinho.",
       ],
       order: [
-        "Fechado. Já levo.",
-        "Uma gelada saindo. Segura aí.",
+        "Pode pedir o que quiser… aqui só tem gelo e limão. Já levo o copo.",
+        "Anotado. Spoiler: vem gelo e limão. Sempre.",
       ],
       story: [
         "Jukebox no canto azul — se a batida falhar, culpa o cabo, não o Val.",
+        "Na hora do almoço, se pedir copo só com gelo, eu fico puto. Gelo E limão. Entendeu?",
         "Calabresa acebolada e jogo na TV. Receita de noite boa.",
       ],
       tipThanks: ["Valeu.", "Fechou. Agradeço."],

@@ -2,6 +2,13 @@
 export const MENU = {
   beer: { id: "beer", name: "Cerveja gelada", price: 12, emoji: "🍺", cat: "drink" },
   water: { id: "water", name: "Água", price: 5, emoji: "💧", cat: "drink" },
+  gelo_limao: {
+    id: "gelo_limao",
+    name: "Copo com gelo e limão",
+    price: 6,
+    emoji: "🧊",
+    cat: "drink",
+  },
   batida: { id: "batida", name: "Batida da casa", price: 18, emoji: "🍹", cat: "batida" },
   batida_limao: { id: "batida_limao", name: "Batida de limão", price: 18, emoji: "🍋", cat: "batida" },
   batida_maracuja: { id: "batida_maracuja", name: "Batida de maracujá", price: 20, emoji: "🥭", cat: "batida" },
@@ -23,7 +30,25 @@ export const MENU_ORDER = [
   "bolinho",
   "calabresa",
   "water",
+  "gelo_limao",
 ];
+
+/** Hora do almoço em Brasília (Val fica puto com “só gelo”). */
+export function isBrazilLunch(date = new Date()) {
+  try {
+    const hour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "America/Sao_Paulo",
+        hour: "numeric",
+        hour12: false,
+      }).formatToParts(date).find((p) => p.type === "hour")?.value
+    );
+    return hour >= 11 && hour < 15;
+  } catch {
+    const h = date.getHours();
+    return h >= 11 && h < 15;
+  }
+}
 
 export function menuChoice(id, more = {}) {
   const def = MENU[id];
