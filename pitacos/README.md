@@ -1,23 +1,29 @@
-# Pitacos do Amarelinho
+# Pitacos do Amarelinho — fluxo padrão
 
-Caixa pública em **`/amarelinho/pitacos/`** (HostGator / PHP).
+Caixa pública: **`/amarelinho/pitacos/`**  
+Painel admin: **`/amarelinho/pitacos/aprovacao.php`**
 
-## Fluxo
+## Fluxo padrão (sempre igual)
 
-1. A galera abre a página, escreve o **pitaco** e clica **Mandar pitaco** (anônimo) → ticket do dia.
-2. Dono entra em **`aprovacao.php`** com o PIN de admin.
-3. Aprova / recusa cada pitaco.
-4. Copia o **prompt do dia** (só aprovados) e cola no Cursor Agent pra implementar e subir.
+| Passo | O quê | Onde |
+| --- | --- | --- |
+| **0** | Galera manda o pitaco (anônimo) | `/pitacos/` |
+| **1** | Pitacos ficam **Novos** (lote do dia) | painel |
+| **2** | Admin **Aprova** (ou recusa) | painel · botão “Aprovar todos” |
+| **3** | Admin **Copia o prompt do lote** | painel |
+| **4** | Cola no **Cursor Agent** → PR `cursor/*` → auto-merge → Deploy HostGator | Cursor + Actions |
+| **5** | Deploy verde → admin **Marca lote no ar** | painel |
+
+Status possíveis: `pending` (Novo) → `approved` (Aprovado) → `shipped` (No ar), ou `rejected` (Recusado).
 
 ## PIN (segredo)
 
-O PIN **não** vai no git. Fica no secret do GitHub:
+Secret do GitHub: **`PITACOS_ADMIN_PIN`**
 
-`Settings → Secrets and variables → Actions → PITACOS_ADMIN_PIN`
+`Settings → Secrets and variables → Actions`
 
-No **Deploy HostGator**, o Action gera `pitacos/config.local.php` só no servidor.
-Esse arquivo está bloqueado pra HTTP (`.htaccess`) e no `.gitignore`.
+No Deploy HostGator o Action gera `config.local.php` só no servidor (bloqueado pra HTTP, fora do git).
 
 ## Dados
 
-A pasta `data/` fica no servidor e **não é apagada** pelo FTP. Não versionamos os pitacos no git.
+Pasta `data/YYYY-MM-DD/` no servidor — um arquivo JSON por pitaco. Não sobe no FTP sync da pasta de tickets.

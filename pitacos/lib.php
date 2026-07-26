@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 
-const AMA_SUGESTOES_STATUSES = ['pending', 'approved', 'rejected', 'shipped'];
+/** Fluxo padrão: novo → aprovado → no ar (ou recusado). */
+const AMA_PITACO_STATUSES = ['pending', 'approved', 'rejected', 'shipped'];
 
 function ama_config(): array
 {
@@ -241,7 +242,7 @@ function ama_create_ticket(string $body): array
 
 function ama_update_status(string $day, string $id, string $status): array
 {
-  if (!in_array($status, AMA_SUGESTOES_STATUSES, true)) {
+  if (!in_array($status, AMA_PITACO_STATUSES, true)) {
     throw new InvalidArgumentException('Status inválido');
   }
   $path = ama_ticket_path($day, $id);
@@ -253,11 +254,19 @@ function ama_update_status(string $day, string $id, string $status): array
     throw new RuntimeException('Ticket corrompido');
   }
   $ticket['status'] = $status;
+  $now = (new DateTimeImmutable('now', ama_tz()))->format(DateTimeInterface::ATOM);
   if ($status === 'approved' && empty($ticket['approvedAt'])) {
-    $ticket['approvedAt'] = (new DateTimeImmutable('now', ama_tz()))->format(DateTimeInterface::ATOM);
+    $ticket['approvedAt'] = $now;
+  }
+  if ($status === 'shipped') {
+    $ticket['shippedAt'] = $now;
+    if (empty($ticket['approvedAt'])) {
+      $ticket['approvedAt'] = $now;
+    }
   }
   if ($status === 'pending' || $status === 'rejected') {
     $ticket['approvedAt'] = null;
+    $ticket['shippedAt'] = null;
   }
   file_put_contents(
     $path,
@@ -267,36 +276,75 @@ function ama_update_status(string $day, string $id, string $status): array
   return $ticket;
 }
 
-function ama_compile_prompt(string $day, bool $approvedOnly = true): string
+/** Muda status de todos os pitacos do dia que estão em $from. */
+function ama_bulk_status(string $day, string $from, string $to): int
+{
+  $n = 0;
+  foreach (ama_load_day($day) as $t) {
+    if (($t['status'] ?? '') !== $from) {
+      continue;
+    }
+    ama_update_status($day, (string) $t['id'], $to);
+    $n++;
+  }
+  return $n;
+}
+
+function ama_day_stats(array $tickets): array
+{
+  $stats = ['pending' => 0, 'approved' => 0, 'rejected' => 0, 'shipped' => 0, 'total' => count($tickets)];
+  foreach ($tickets as $t) {
+    $s = (string) ($t['status'] ?? 'pending');
+    if (isset($stats[$s])) {
+      $stats[$s]++;
+    }
+  }
+  return $stats;
+}
+
+/**
+ * Prompt padrão do lote do dia (só aprovados aguardando ir pro ar).
+ * Formato fixo pra colar no Cursor Agent.
+ */
+function ama_compile_prompt(string $day): string
 {
   $tickets = ama_load_day($day);
   $picked = array_values(array_filter(
     $tickets,
-    static fn($t) => !$approvedOnly || (($t['status'] ?? '') === 'approved')
+    static fn($t) => ($t['status'] ?? '') === 'approved'
   ));
 
   $lines = [];
-  $lines[] = "Implemente os pitacos aprovados do Amarelinho do dia {$day}.";
-  $lines[] = 'Site: https://jhonatanribeiro.com/amarelinho/';
-  $lines[] = 'Trabalho em branch cursor/*, PR para develop, bump AMA_BUILD, npm run build, e deixe pronto para auto-merge/deploy.';
-  $lines[] = 'Mantenha o visual do boteco (Bebas Neue / DM Sans / amarelo), touch controls e copy em português.';
+  $lines[] = "# Pitacos Amarelinho — lote {$day}";
+  $lines[] = '';
+  $lines[] = '## Regras fixas do fluxo';
+  $lines[] = '- Site: https://jhonatanribeiro.com/amarelinho/';
+  $lines[] = '- Branch `cursor/<nome>-5e1e`, PR para `develop` (ready for review, não draft).';
+  $lines[] = '- Bump `AMA_BUILD` + cache do `sw.js`.';
+  $lines[] = '- Rode `npm run build` antes de terminar.';
+  $lines[] = '- Não peça merge manual — o Action Auto-merge Cursor PRs sobe e dispara deploy.';
+  $lines[] = '- Copy em português; mantenha visual do boteco, touch e sticks.';
   $lines[] = '';
   if ($picked === []) {
-    $lines[] = '(Nenhum pitaco aprovado neste dia.)';
+    $lines[] = '## Lote';
+    $lines[] = '(Nenhum pitaco aprovado esperando implementação neste dia.)';
     return implode("\n", $lines);
   }
 
-  $lines[] = 'Pitacos aprovados (um por vez no mesmo dia — implemente todos abaixo):';
+  $lines[] = '## Pitacos do lote (implemente todos)';
   $lines[] = '';
-  foreach ($picked as $t) {
+  foreach ($picked as $i => $t) {
+    $n = $i + 1;
     $id = $t['id'] ?? '?';
-    $title = $t['title'] ?? 'Pitaco';
     $body = trim((string) ($t['body'] ?? ''));
-    $lines[] = "## Pitaco {$id} — {$title}";
+    $lines[] = "### {$n}. {$id}";
     $lines[] = $body;
     $lines[] = '';
   }
-  $lines[] = 'Ao terminar, marque esses pitacos como feitos no fluxo de aprovação se fizer sentido.';
+  $lines[] = '## Fechamento do fluxo';
+  $lines[] = 'Quando o **Deploy HostGator** estiver verde, o admin marca este lote como **No ar** em:';
+  $lines[] = 'https://jhonatanribeiro.com/amarelinho/pitacos/aprovacao.php';
+  $lines[] = '(passo 4 do painel — botão “Marcar lote no ar”).';
   return implode("\n", $lines);
 }
 

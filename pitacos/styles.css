@@ -214,6 +214,97 @@ a { color: #ffd84a; }
   margin: 0 auto;
 }
 
+.wrap--admin {
+  width: min(800px, 100%);
+}
+
+.pipeline {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.pipeline__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 216, 74, 0.25);
+  color: rgba(255, 246, 214, 0.55);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pipeline__step span {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  color: #ffd84a;
+}
+
+.pipeline__step.is-active {
+  border-color: #ffd84a;
+  color: var(--cream);
+  background: rgba(255, 216, 74, 0.1);
+}
+
+.pipeline__step.is-done {
+  border-color: rgba(143, 212, 138, 0.55);
+  color: #d8ffd4;
+}
+
+.pipeline__step.is-done span {
+  background: rgba(80, 140, 70, 0.45);
+  color: #d8ffd4;
+}
+
+.flow-card {
+  margin-top: 16px;
+}
+
+.flow-card--muted {
+  opacity: 0.85;
+}
+
+.flow-help {
+  margin: -4px 0 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(255, 246, 214, 0.65);
+}
+
+.flow-olist {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 246, 214, 0.82);
+}
+
+.flow-olist li + li { margin-top: 6px; }
+
+.ticket-list { margin-top: 8px; }
+
+.meta--stats {
+  margin-top: 10px;
+  font-weight: 600;
+  color: rgba(255, 246, 214, 0.7);
+}
+
+#admin-card .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .brand {
   font-family: "Bebas Neue", sans-serif;
   font-size: clamp(42px, 10vw, 64px);
