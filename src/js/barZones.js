@@ -40,21 +40,43 @@ function addCol(world, x, z, w, d) {
   });
 }
 
-function label(text, bg, fg = "#ffffff") {
+function label(text, bg, fg = "#ffffff", opts = {}) {
+  const tw = opts.w || 512;
+  const th = opts.h || 128;
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 128;
+  canvas.width = tw;
+  canvas.height = th;
   const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillRect(0, 0, tw, th);
   ctx.fillStyle = fg;
-  ctx.font = "bold 56px Bebas Neue, Arial Black, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, 256, 64);
+  // Encaixa a fonte na largura (letreiro longo não pode nascer em 512px)
+  let size = opts.fontSize || Math.floor(th * 0.55);
+  const family = 'Bebas Neue, "Arial Black", sans-serif';
+  ctx.font = `bold ${size}px ${family}`;
+  while (size > 24 && ctx.measureText(text).width > tw * 0.92) {
+    size -= 2;
+    ctx.font = `bold ${size}px ${family}`;
+  }
+  ctx.fillText(text, tw / 2, th / 2 + size * 0.04);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = opts.anisotropy ?? 8;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.needsUpdate = true;
   return tex;
+}
+
+/** Letreiro da fachada: canvas largo pra não esticar e ficar embassado. */
+function facadeSignTexture(text) {
+  // Proporção ≈ largura do plano (W*0.92) / altura 1.1
+  return label(text, "#0a0a0a", "#ffffff", { w: 4096, h: 192, fontSize: 150, anisotropy: 16 });
 }
 
 /**
@@ -127,13 +149,17 @@ export function buildBarFromPlan(world) {
   const blackBoard = box(W + 0.5, 1.35, 0.22, 0x0a0a0a);
   blackBoard.position.set(cx, 4.75, B.z1 - 0.25);
   world.group.add(blackBoard);
+  const signW = W * 0.92;
+  const signH = 1.1;
   const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(W * 0.92, 1.1),
+    new THREE.PlaneGeometry(signW, signH),
     new THREE.MeshBasicMaterial({
-      map: label("AMARELINHO DAS BATIDAS", "#0a0a0a", "#ffffff"),
+      map: facadeSignTexture("AMARELINHO DAS BATIDAS"),
+      toneMapped: false,
     })
   );
   sign.position.set(cx, 4.75, B.z1 - 0.1);
+  sign.renderOrder = 1;
   world.group.add(sign);
 
   // —— Verde: plataforma elevada + escada ——
