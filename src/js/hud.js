@@ -3,6 +3,8 @@ export class HUD {
     this.root = document.getElementById("hud");
     this.prompt = document.getElementById("prompt");
     this.toast = document.getElementById("toast");
+    this.objective = document.getElementById("objective");
+    this.pauseOverlay = document.getElementById("pause");
     this._toastTimer = 0;
   }
 
@@ -24,6 +26,17 @@ export class HUD {
     this.prompt.textContent = text;
   }
 
+  setObjective(text) {
+    if (!this.objective) return;
+    if (!text) {
+      this.objective.hidden = true;
+      this.objective.textContent = "";
+      return;
+    }
+    this.objective.hidden = false;
+    this.objective.textContent = text;
+  }
+
   showToast(text, ms = 2600) {
     this.toast.hidden = false;
     this.toast.textContent = text;
@@ -31,5 +44,10 @@ export class HUD {
     this._toastTimer = setTimeout(() => {
       this.toast.hidden = true;
     }, ms);
+  }
+
+  showPause(on) {
+    if (!this.pauseOverlay) return;
+    this.pauseOverlay.hidden = !on;
   }
 }

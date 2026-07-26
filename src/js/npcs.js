@@ -137,18 +137,20 @@ export const WAITERS = [
     height: 1.0,
     lines: {
       greet: [
-        "E aí. Beleza?",
-        "Fala, meu brother. Chegou.",
-        "Boné na cabeça, serviço na mão. O que precisa?",
+        "E aí. Cozinha quente — o que precisa?",
+        "Fala, brother. Chapa ligada, boné firme.",
+        "Chegou na hora. Tô no fogão.",
       ],
       chat: [
-        "O boné? Faz parte do uniforme… oficial ou não.",
-        "Se Toninho resmungar, deixa. Ele sempre resmunga.",
-        "Amarelinho de verdade é isso: calçada, conversa e gelada.",
+        "Aqui é chapa e fogão. O resto do bar que converse.",
+        "Porção saindo: cheiro já avisou a calçada.",
+        "Toninho anota, eu faço. Divisão de trabalho.",
+        "Cuidado com o óleo — a noite é longa.",
       ],
       order: [
-        "Já era. Vou buscar.",
-        "Anota aqui… pronto. Já volto.",
+        "Manda o pedido. Já ponho na chapa.",
+        "Gelada eu não carrego — mas a porção eu resolvo.",
+        "Anota aí… fogão a mil. Já já sai.",
       ],
     },
   },

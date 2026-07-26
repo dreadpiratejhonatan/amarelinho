@@ -7,6 +7,7 @@ export class Sfx {
     this._noiseSrc = null;
     this._noiseGain = null;
     this._murmurTimer = null;
+    this._fxTimer = null;
   }
 
   _ensure() {
@@ -56,7 +57,37 @@ export class Sfx {
     this._beep({ freq: 220, dur: 0.09, type: "sine", gain: 0.05 });
   }
 
-  /** Burburinho de bar em volume baixo (noise filtrado + murmúrios). */
+  /** Tilintar de copo distante. */
+  glass() {
+    this._beep({ freq: 980, dur: 0.06, type: "sine", gain: 0.018, slide: 220 });
+    this._beep({ freq: 1320, dur: 0.05, type: "triangle", gain: 0.012, slide: -80 });
+  }
+
+  /** Risadinha baixa no ambience. */
+  chuckle() {
+    const ctx = this._ensure();
+    if (!ctx) return;
+    for (let i = 0; i < 3; i++) {
+      const t0 = ctx.currentTime + i * 0.07;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(280 + i * 40, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.01, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.1);
+    }
+  }
+
+  /** Chiado curto de TV/gol. */
+  tvBlip() {
+    this._beep({ freq: 180, dur: 0.14, type: "sawtooth", gain: 0.008, slide: 90 });
+  }
+
   startAmbience() {
     this._ambienceWanted = true;
     if (this._ambienceOn) return;
@@ -81,7 +112,7 @@ export class Sfx {
     filter.Q.value = 0.7;
 
     const gain = ctx.createGain();
-    gain.gain.value = 0.028;
+    gain.gain.value = 0.026;
 
     src.connect(filter);
     filter.connect(gain);
@@ -95,10 +126,19 @@ export class Sfx {
     const scheduleMurmur = () => {
       if (!this._ambienceOn || !this._ambienceWanted) return;
       this._murmurBurst();
-      const next = 180 + Math.random() * 520;
-      this._murmurTimer = setTimeout(scheduleMurmur, next);
+      this._murmurTimer = setTimeout(scheduleMurmur, 180 + Math.random() * 520);
     };
     this._murmurTimer = setTimeout(scheduleMurmur, 200 + Math.random() * 400);
+
+    const scheduleFx = () => {
+      if (!this._ambienceOn || !this._ambienceWanted) return;
+      const r = Math.random();
+      if (r < 0.35) this.glass();
+      else if (r < 0.6) this.chuckle();
+      else if (r < 0.75) this.tvBlip();
+      this._fxTimer = setTimeout(scheduleFx, 2800 + Math.random() * 5200);
+    };
+    this._fxTimer = setTimeout(scheduleFx, 2500 + Math.random() * 2000);
   }
 
   _murmurBurst() {
@@ -135,6 +175,10 @@ export class Sfx {
     if (this._murmurTimer) {
       clearTimeout(this._murmurTimer);
       this._murmurTimer = null;
+    }
+    if (this._fxTimer) {
+      clearTimeout(this._fxTimer);
+      this._fxTimer = null;
     }
     if (this._noiseSrc) {
       try {

@@ -48,6 +48,38 @@ html, body {
   text-shadow: 0 2px 0 #7a5a00, 0 0 18px rgba(255, 200, 40, 0.35);
 }
 
+.hud__objective {
+  position: absolute;
+  top: 56px;
+  left: 22px;
+  max-width: min(420px, 70vw);
+  padding: 8px 12px;
+  background: var(--panel);
+  border-left: 3px solid #ffd84a;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff6d6;
+  line-height: 1.35;
+}
+
+.hud__pause {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 216, 74, 0.45);
+  background: var(--panel);
+  color: #ffd84a;
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: pointer;
+  line-height: 1;
+}
+
 .hud__hint {
   position: absolute;
   bottom: 18px;
@@ -58,6 +90,69 @@ html, body {
   color: rgba(255, 246, 214, 0.55);
   text-align: center;
   max-width: 90vw;
+}
+
+.pause {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 0, 0.72);
+  pointer-events: auto;
+}
+
+.pause[hidden] {
+  display: none !important;
+}
+
+.pause__card {
+  width: min(360px, 90vw);
+  padding: 28px 24px 22px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 216, 74, 0.4);
+  border-radius: 14px;
+  text-align: center;
+}
+
+.pause__title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 36px;
+  letter-spacing: 0.08em;
+  color: #ffd84a;
+  margin-bottom: 8px;
+}
+
+.pause__sub {
+  font-size: 14px;
+  color: rgba(255, 246, 214, 0.7);
+  margin-bottom: 20px;
+}
+
+.pause__link {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 246, 214, 0.65);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+body.is-touch .hud__objective {
+  top: 52px;
+  left: 14px;
+  right: 70px;
+  max-width: none;
+  font-size: 12px;
+}
+
+body.is-touch .hud__hint {
+  display: none;
 }
 
 .crosshair {

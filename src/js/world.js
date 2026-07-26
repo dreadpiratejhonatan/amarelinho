@@ -236,6 +236,8 @@ export class World {
     this.customers = [];
     this.npcAgents = [];
     this.tvs = [];
+    this.cars = [];
+    this._blinkLights = [];
     this.group = new THREE.Group();
     this.scene.add(this.group);
     this._awningLights = [];
@@ -317,6 +319,7 @@ export class World {
       const lamp = new THREE.PointLight(0xffe8b0, 2.4, 16, 1.5);
       lamp.position.set(x, 4.2, 6.5);
       this.scene.add(lamp);
+      this._blinkLights.push({ light: lamp, base: 2.4, phase: Math.random() * Math.PI * 2 });
       const pole = meshCyl(0.06, 0.08, 4.2, 0x333338, { metalness: 0.4, roughness: 0.45 });
       pole.position.set(x, 2.1, 6.5);
       this.group.add(pole);
@@ -597,9 +600,9 @@ export class World {
   }
 
   _streetProps() {
-    this._makeCar(-6.5, 9.5, 0x9aa0a8);
-    this._makeCar(0.5, 9.8, 0x1a1a1e);
-    this._makeCar(8.0, 9.4, 0xb0b4b8);
+    this.cars.push(this._makeCar(-10, 9.6, 0x9aa0a8, 3.2));
+    this.cars.push(this._makeCar(4, 10.2, 0x1a1a1e, -2.6));
+    this.cars.push(this._makeCar(14, 9.4, 0xb0b4b8, 2.1));
 
     const pole = meshCyl(0.1, 0.12, 7, 0x6a6a6c);
     pole.position.set(-11, 3.5, 6.2);
@@ -627,14 +630,24 @@ export class World {
     this.group.add(wheel2);
   }
 
-  _makeCar(x, z, color) {
+  _makeCar(x, z, color, speed = 2.5) {
+    const g = new THREE.Group();
     const body = meshBox(1.7, 0.55, 3.6, color, { roughness: 0.45, metalness: 0.25 });
-    body.position.set(x, 0.45, z);
-    this.group.add(body);
+    body.position.y = 0.45;
+    g.add(body);
     const cabin = meshBox(1.5, 0.45, 1.8, 0x1a2230, { roughness: 0.3, metalness: 0.2 });
-    cabin.position.set(x, 0.9, z - 0.2);
-    this.group.add(cabin);
-    addWallCollider(this.colliders, x, z, 1.8, 3.7);
+    cabin.position.set(0, 0.9, -0.2);
+    g.add(cabin);
+    const headL = meshBox(0.2, 0.12, 0.08, 0xffe8a0, { emissive: 0xffcc66, emissiveIntensity: 0.8 });
+    headL.position.set(-0.5, 0.45, -1.85);
+    g.add(headL);
+    const headR = headL.clone();
+    headR.position.x = 0.5;
+    g.add(headR);
+    g.position.set(x, 0, z);
+    if (speed < 0) g.rotation.y = Math.PI;
+    this.group.add(g);
+    return { mesh: g, speed, zLane: z, minX: -18, maxX: 18 };
   }
 
   _spawnWaiters() {
@@ -686,7 +699,11 @@ export class World {
   /** Clientes novos a cada carregamento — aparência e quantidade aleatórias. */
   _spawnCustomers() {
     const usedNames = new Set();
-    const count = 10 + Math.floor(Math.random() * 6); // 10–15
+    const mobile = typeof window !== "undefined" && (
+      window.matchMedia("(pointer: coarse)").matches ||
+      window.matchMedia("(hover: none)").matches
+    );
+    const count = mobile ? 7 + Math.floor(Math.random() * 3) : 10 + Math.floor(Math.random() * 6);
     const spawnPads = [
       [-10, 3.5], [-4, 4], [0, 3.8], [5, 4],
       [-10, -2], [-7, -3], [-1, -2], [0.5, -4],
@@ -737,11 +754,29 @@ export class World {
   }
 
   updateTvs(now) {
-    // Atualiza ~20 fps pra não pesar
     if (!this._tvAcc) this._tvAcc = 0;
     this._tvAcc += 1;
-    if (this._tvAcc % 3 !== 0) return;
+    const mobile = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    const every = mobile ? 5 : 3;
+    if (this._tvAcc % every !== 0) return;
     for (const tv of this.tvs) tv.draw(now);
+  }
+
+  updateNight(dt, now) {
+    for (const car of this.cars) {
+      car.mesh.position.x += car.speed * dt;
+      if (car.speed > 0 && car.mesh.position.x > car.maxX) car.mesh.position.x = car.minX;
+      if (car.speed < 0 && car.mesh.position.x < car.minX) car.mesh.position.x = car.maxX;
+      car.mesh.position.z = car.zLane + Math.sin(now * 0.001 + car.mesh.position.x) * 0.02;
+    }
+    for (const b of this._blinkLights) {
+      const flick = 0.85 + Math.sin(now * 0.004 + b.phase) * 0.08 + Math.sin(now * 0.013 + b.phase) * 0.05;
+      b.light.intensity = b.base * flick;
+    }
+    for (const l of this._awningLights) {
+      if (!l.userData._base) l.userData._base = l.intensity;
+      l.intensity = l.userData._base * (0.92 + Math.sin(now * 0.003 + l.position.x) * 0.06);
+    }
   }
 
   resolveCollision(pos, radius) {
