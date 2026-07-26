@@ -1,13 +1,11 @@
-/** Controles touch: stick à esquerda, olhar à direita, botão E. */
+/** Controles touch: stick à esquerda, olhar à direita, botão E (tap). */
 
 export function isTouchDevice() {
   const touchPoints = navigator.maxTouchPoints > 0 || "ontouchstart" in window;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const noHover = window.matchMedia("(hover: none)").matches;
   const fineDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  // Desktop com mouse fino e sem coarse → teclado/mouse
   if (fineDesktop && !coarse) return false;
-  // Celular/tablet: coarse, sem hover, ou tela estreita com touch
   return coarse || noHover || (touchPoints && Math.min(window.innerWidth, window.innerHeight) <= 920);
 }
 
@@ -19,6 +17,9 @@ export class TouchControls {
     this._joyId = null;
     this._lookId = null;
     this._lookLast = null;
+    this._lookStart = null;
+    this._lookMoved = 0;
+    this._lookFromBtn = false;
     this._origin = { x: 0, y: 0 };
 
     this.root = document.getElementById("touch-controls");
@@ -39,7 +40,6 @@ export class TouchControls {
 
     this._bindJoystick();
     this._bindLook();
-    this._bindInteract();
   }
 
   show() {
@@ -52,6 +52,24 @@ export class TouchControls {
   hide() {
     if (!this.root) return;
     this.root.hidden = true;
+  }
+
+  _inStick(clientX, clientY) {
+    if (!this.stick) return false;
+    const r = this.stick.getBoundingClientRect();
+    const pad = 12;
+    return (
+      clientX >= r.left - pad &&
+      clientX <= r.right + pad &&
+      clientY >= r.top - pad &&
+      clientY <= r.bottom + pad
+    );
+  }
+
+  _inInteractBtn(clientX, clientY) {
+    if (!this.btnInteract) return false;
+    const r = this.btnInteract.getBoundingClientRect();
+    return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
   }
 
   _bindJoystick() {
@@ -114,72 +132,68 @@ export class TouchControls {
     }
   }
 
+  /**
+   * Olhar na metade direita. Move/end no document (capture) pra não perder
+   * o dedo ao arrastar pra direita (borda / botão E).
+   * Tap curto no E = interagir; arrastar = olhar.
+   */
   _bindLook() {
-    const zone = this.zoneLook;
-    if (!zone) return;
-
-    const isUi = (el) =>
-      el?.closest?.("#touch-stick, #touch-interact, .touch__stick, .touch__btn");
-
-    zone.addEventListener(
-      "touchstart",
-      (e) => {
-        if (isUi(e.target)) return;
-        for (const t of e.changedTouches) {
-          if (t.identifier === this._joyId) continue;
-          // Só metade direita da tela pra olhar (evita conflito com stick)
-          if (t.clientX < window.innerWidth * 0.42) continue;
-          this._lookId = t.identifier;
-          this._lookLast = { x: t.clientX, y: t.clientY };
-          break;
-        }
-      },
-      { passive: true }
-    );
-    zone.addEventListener(
-      "touchmove",
-      (e) => {
-        for (const t of e.changedTouches) {
-          if (t.identifier === this._lookId && this._lookLast) {
-            const dx = t.clientX - this._lookLast.x;
-            const dy = t.clientY - this._lookLast.y;
-            this.input.lookDX += dx * this.lookSens;
-            this.input.lookDY += dy * this.lookSens;
-            this._lookLast = { x: t.clientX, y: t.clientY };
-            e.preventDefault();
-            break;
-          }
-        }
-      },
-      { passive: false }
-    );
-    const end = (e) => {
+    const onStart = (e) => {
+      if (this.root?.hidden) return;
       for (const t of e.changedTouches) {
-        if (t.identifier === this._lookId) {
-          this._lookId = null;
-          this._lookLast = null;
-          break;
-        }
+        if (t.identifier === this._joyId) continue;
+        if (this._inStick(t.clientX, t.clientY)) continue;
+        // Metade esquerda livre pro stick / mão esquerda
+        if (t.clientX < window.innerWidth * 0.36) continue;
+
+        this._lookId = t.identifier;
+        this._lookLast = { x: t.clientX, y: t.clientY };
+        this._lookStart = { x: t.clientX, y: t.clientY };
+        this._lookMoved = 0;
+        this._lookFromBtn = this._inInteractBtn(t.clientX, t.clientY);
+        if (this._lookFromBtn) this.btnInteract?.classList.add("is-down");
+        e.preventDefault();
+        break;
       }
     };
-    zone.addEventListener("touchend", end, { passive: true });
-    zone.addEventListener("touchcancel", end, { passive: true });
-  }
 
-  _bindInteract() {
-    if (!this.btnInteract) return;
-    const press = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.input.interactPressed = true;
-      this.btnInteract.classList.add("is-down");
+    const onMove = (e) => {
+      if (this._lookId == null) return;
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this._lookId || !this._lookLast) continue;
+        const dx = t.clientX - this._lookLast.x;
+        const dy = t.clientY - this._lookLast.y;
+        this._lookMoved += Math.hypot(dx, dy);
+        this.input.lookDX += dx * this.lookSens;
+        this.input.lookDY += dy * this.lookSens;
+        this._lookLast = { x: t.clientX, y: t.clientY };
+        e.preventDefault();
+        break;
+      }
     };
-    const up = (e) => {
-      e.preventDefault();
-      this.btnInteract.classList.remove("is-down");
+
+    const onEnd = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this._lookId) continue;
+        // Tap no botão E (sem arrastar de verdade) → interagir
+        if (this._lookFromBtn && this._lookMoved < 16) {
+          this.input.interactPressed = true;
+        }
+        this.btnInteract?.classList.remove("is-down");
+        this._lookId = null;
+        this._lookLast = null;
+        this._lookStart = null;
+        this._lookFromBtn = false;
+        this._lookMoved = 0;
+        e.preventDefault();
+        break;
+      }
     };
-    this.btnInteract.addEventListener("touchstart", press, { passive: false });
-    this.btnInteract.addEventListener("touchend", up, { passive: false });
-    this.btnInteract.addEventListener("touchcancel", up, { passive: false });
+
+    // Capture no document: dedo continua válido até a borda direita
+    document.addEventListener("touchstart", onStart, { passive: false, capture: true });
+    document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+    document.addEventListener("touchend", onEnd, { passive: false, capture: true });
+    document.addEventListener("touchcancel", onEnd, { passive: false, capture: true });
   }
 }

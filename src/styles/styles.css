@@ -343,7 +343,8 @@ html, body {
   font-family: "Bebas Neue", sans-serif;
   font-size: 30px;
   letter-spacing: 0.06em;
-  pointer-events: auto;
+  /* Visual only — tap/drag tratados no look (não rouba o dedo) */
+  pointer-events: none;
   touch-action: none;
   z-index: 5;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
