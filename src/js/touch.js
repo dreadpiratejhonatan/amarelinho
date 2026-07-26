@@ -15,7 +15,7 @@ export class TouchControls {
   constructor(input) {
     this.input = input;
     this.enabled = false;
-    this.lookSens = 0.55;
+    this.lookSens = 0.28;
     this._joyId = null;
     this._lookId = null;
     this._lookLast = null;
@@ -61,7 +61,6 @@ export class TouchControls {
     const onStart = (e) => {
       const t = e.changedTouches[0];
       this._joyId = t.identifier;
-      // Cancela olhar se o mesmo dedo / outro conflito
       if (this._lookId === this._joyId) {
         this._lookId = null;
         this._lookLast = null;
@@ -103,12 +102,11 @@ export class TouchControls {
   _updateStick(x, y) {
     const dx = x - this._origin.x;
     const dy = y - this._origin.y;
-    const max = 56;
+    const max = 62;
     const len = Math.hypot(dx, dy) || 1;
     const clamped = Math.min(len, max);
     const nx = (dx / len) * clamped;
     const ny = (dy / len) * clamped;
-    // Dedo pra cima (ny < 0) → frente (analog.y < 0 no eixo WASD do jogo)
     this.input.analog.x = nx / max;
     this.input.analog.y = ny / max;
     if (this.knob) {
@@ -120,13 +118,17 @@ export class TouchControls {
     const zone = this.zoneLook;
     if (!zone) return;
 
+    const isUi = (el) =>
+      el?.closest?.("#touch-stick, #touch-interact, .touch__stick, .touch__btn");
+
     zone.addEventListener(
       "touchstart",
       (e) => {
-        if (e.target.closest("#touch-stick, #touch-interact, .touch__stick, .touch__btn")) return;
-        // Só o primeiro dedo livre (não o do stick)
+        if (isUi(e.target)) return;
         for (const t of e.changedTouches) {
           if (t.identifier === this._joyId) continue;
+          // Só metade direita da tela pra olhar (evita conflito com stick)
+          if (t.clientX < window.innerWidth * 0.42) continue;
           this._lookId = t.identifier;
           this._lookLast = { x: t.clientX, y: t.clientY };
           break;

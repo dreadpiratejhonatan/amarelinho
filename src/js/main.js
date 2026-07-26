@@ -26,10 +26,15 @@ class Game {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = isTouchDevice() ? 1.65 : 1.35;
+    this.renderer.toneMappingExposure = isTouchDevice() ? 1.95 : 1.35;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
+    this.camera = new THREE.PerspectiveCamera(
+      isTouchDevice() ? 78 : 70,
+      window.innerWidth / window.innerHeight,
+      0.05,
+      120
+    );
 
     this.input = new Input(this.canvas);
     this.hud = new HUD();
@@ -83,14 +88,19 @@ class Game {
     this.menu.setAttribute("aria-hidden", "true");
     this.hud.show();
     this.state = "playing";
-    this.player.position.set(0.5, CONFIG.eyeHeight, 7.2);
-    this.player.yaw = Math.PI;
-    this.player.pitch = -0.05;
+    // Olhar pro bar (−Z). Math.PI apontava pros prédios escuros da rua.
+    this.player.position.set(0.4, CONFIG.eyeHeight, 5.8);
+    this.player.yaw = 0;
+    this.player.pitch = -0.06;
     this.player.standUp();
     this.input.requestLock();
     this.touch?.show();
     this.sfx.open();
-    this.hud.showToast("Boa noite. Anda pela calçada e pela rua — o Amarelinho tá aberto.", 3400);
+    if (this.input.mobile) {
+      this.hud.showToast("Stick pra andar · arrasta a direita pra olhar · E pra falar", 3800);
+    } else {
+      this.hud.showToast("Boa noite. Anda pela calçada e pela rua — o Amarelinho tá aberto.", 3400);
+    }
   }
 
   _onResize() {

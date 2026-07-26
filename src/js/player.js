@@ -5,9 +5,9 @@ export class Player {
   constructor(camera, world) {
     this.camera = camera;
     this.world = world;
-    this.position = new THREE.Vector3(0.5, CONFIG.eyeHeight, 7.2);
-    this.yaw = Math.PI;
-    this.pitch = -0.08;
+    this.position = new THREE.Vector3(0.4, CONFIG.eyeHeight, 5.8);
+    this.yaw = 0;
+    this.pitch = -0.06;
     this.velY = 0;
     this.onGround = true;
     this.sitting = false;

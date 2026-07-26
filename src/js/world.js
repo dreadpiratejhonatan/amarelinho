@@ -311,6 +311,11 @@ export class World {
       this.group.add(head);
     }
 
+    // Street fill — evita “buraco preto” olhando pra longe
+    const streetFill = new THREE.PointLight(0xffe2b0, 1.6, 28, 1.6);
+    streetFill.position.set(0, 5.5, 11);
+    this.scene.add(streetFill);
+
     this.scene.background = new THREE.Color(0x12182a);
     this.scene.fog = new THREE.Fog(0x12182a, 28, 70);
   }
