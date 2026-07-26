@@ -52,7 +52,11 @@ for (const folder of ["pitacos", "sugestoes"]) {
   const out = path.join(DIST, folder);
   fs.cpSync(folder, out, {
     recursive: true,
-    filter: (src) => !src.includes(`${path.sep}data${path.sep}`) && !src.endsWith(`${path.sep}data`),
+    filter: (src) => {
+      if (src.endsWith(`${path.sep}config.local.php`) || src.endsWith("config.local.php")) return false;
+      if (src.includes(`${path.sep}data${path.sep}`) || src.endsWith(`${path.sep}data`)) return false;
+      return true;
+    },
   });
 }
 

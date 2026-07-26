@@ -7,7 +7,16 @@ function ama_config(): array
 {
   static $cfg = null;
   if ($cfg === null) {
-    $cfg = require __DIR__ . '/config.php';
+    $base = require __DIR__ . '/config.php';
+    $local = [];
+    $localPath = __DIR__ . '/config.local.php';
+    if (is_file($localPath)) {
+      $loaded = require $localPath;
+      if (is_array($loaded)) {
+        $local = $loaded;
+      }
+    }
+    $cfg = array_merge($base, $local);
   }
   return $cfg;
 }
@@ -312,11 +321,12 @@ function ama_admin_login(string $pin): bool
 {
   ama_session_start();
   $expected = (string) (ama_config()['admin_pin'] ?? '');
-  if ($expected !== '' && hash_equals($expected, $pin)) {
-    $_SESSION['ama_admin'] = true;
-    return true;
+  // Sem PIN no servidor (secret não configurado) → ninguém entra
+  if ($expected === '' || !hash_equals($expected, $pin)) {
+    return false;
   }
-  return false;
+  $_SESSION['ama_admin'] = true;
+  return true;
 }
 
 function ama_admin_logout(): void

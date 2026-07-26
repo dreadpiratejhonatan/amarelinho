@@ -9,6 +9,7 @@ assets/ref/
 pitacos/data/**
 !pitacos/data/.htaccess
 !pitacos/data/.gitkeep
+pitacos/config.local.php
 sugestoes/data/**
 !sugestoes/data/.htaccess
 !sugestoes/data/.gitkeep

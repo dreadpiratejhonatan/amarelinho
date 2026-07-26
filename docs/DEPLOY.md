@@ -18,6 +18,7 @@ Dispara em **push na `develop`** ou manualmente em Actions → **Deploy HostGato
 | `HOSTGATOR_FTP_USER` | usuário FTP dedicado do Amarelinho |
 | `HOSTGATOR_FTP_PASSWORD` | senha FTP |
 | `HOSTGATOR_FTP_DIR` | pasta remota (raiz da conta FTP jail, em geral `/` ou `./`) |
+| `PITACOS_ADMIN_PIN` | PIN do painel `/pitacos/aprovacao.php` (não vai pro git; só no servidor) |
 
 Mesmo esquema do Neve Selvagem (`snow`): conta FTP própria jailada em `public_html/amarelinho/`.
 
