@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 process.chdir(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIST = "dist";
 const HOST = path.join("release", "hostgator-amarelinho");
-const CACHE = "v24";
+const CACHE = "v25";
 
 fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(path.join(DIST, "styles"), { recursive: true });
@@ -18,7 +18,9 @@ if (fs.existsSync("manifest.webmanifest")) {
   fs.copyFileSync("manifest.webmanifest", path.join(DIST, "manifest.webmanifest"));
 }
 if (fs.existsSync("sw.js")) {
-  fs.copyFileSync("sw.js", path.join(DIST, "sw.js"));
+  let sw = fs.readFileSync("sw.js", "utf8");
+  sw = sw.replace(/amarelinho-v\d+/g, `amarelinho-${CACHE}`);
+  fs.writeFileSync(path.join(DIST, "sw.js"), sw);
 }
 if (fs.existsSync("assets")) {
   for (const name of fs.readdirSync("assets")) {
@@ -42,6 +44,19 @@ html = html
   .replace(/<script type="importmap">[\s\S]*?<\/script>\s*/m, "");
 
 fs.writeFileSync(path.join(DIST, "index.html"), html);
+
+// Caixa de sugestões (PHP na HostGator) — copia sem a pasta data/ (tickets ficam só no servidor)
+if (fs.existsSync("sugestoes")) {
+  const sugDist = path.join(DIST, "sugestoes");
+  fs.cpSync("sugestoes", sugDist, {
+    recursive: true,
+    filter: (src) => !src.includes(`${path.sep}data${path.sep}`) && !src.endsWith(`${path.sep}data`),
+  });
+  fs.mkdirSync(path.join(sugDist, "data"), { recursive: true });
+  if (fs.existsSync("sugestoes/data/.htaccess")) {
+    fs.copyFileSync("sugestoes/data/.htaccess", path.join(sugDist, "data", ".htaccess"));
+  }
+}
 
 fs.rmSync(HOST, { recursive: true, force: true });
 fs.cpSync(DIST, HOST, { recursive: true });

@@ -42,3 +42,5 @@ jobs:
           exclude: |
             **/.git*
             **/.git*/**
+            sugestoes/data/**
+            !sugestoes/data/.htaccess

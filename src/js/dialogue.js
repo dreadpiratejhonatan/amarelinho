@@ -8,12 +8,7 @@ export class Dialogue {
     this.open = false;
     this._onDone = null;
 
-    // pointerup cobre mouse + touch (click sozinho falha se algum handler chamou preventDefault)
-    this.nextBtn.addEventListener("pointerup", (e) => {
-      if (e.button != null && e.button !== 0) return;
-      e.preventDefault();
-      this._advance();
-    });
+    this._bindActivate(this.nextBtn, () => this._advance());
   }
 
   /**
@@ -23,6 +18,7 @@ export class Dialogue {
   start(session, onDone) {
     this.open = true;
     this.root.hidden = false;
+    document.body.classList.add("is-dialogue");
     this._session = session;
     this._stepIndex = 0;
     this._onDone = onDone || null;
@@ -33,11 +29,42 @@ export class Dialogue {
   close(action = null) {
     this.open = false;
     this.root.hidden = true;
+    document.body.classList.remove("is-dialogue");
     this.choicesEl.innerHTML = "";
     this.nextBtn.hidden = true;
     const cb = this._onDone;
     this._onDone = null;
     cb?.(action ?? this._pendingAction);
+  }
+
+  /**
+   * pointerup sozinho falha em alguns Androids quando um handler capture
+   * chamou preventDefault no touchstart. Usa pointerdown + touchend + click.
+   */
+  _bindActivate(el, fn) {
+    if (!el) return;
+    let lockUntil = 0;
+    const run = (e) => {
+      if (e) {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault?.();
+        e.stopPropagation?.();
+      }
+      const now = performance.now();
+      if (now < lockUntil) return;
+      lockUntil = now + 400;
+      fn();
+    };
+    el.addEventListener("pointerup", run);
+    el.addEventListener("click", run);
+    el.addEventListener(
+      "touchend",
+      (e) => {
+        // Só o primeiro dedo; evita ghost-click duplicar
+        if (e.changedTouches?.length) run(e);
+      },
+      { passive: false }
+    );
   }
 
   _renderStep() {
@@ -55,13 +82,15 @@ export class Dialogue {
       for (const c of step.choices) {
         const btn = document.createElement("button");
         btn.type = "button";
+        btn.className = "dialogue__choice";
         btn.textContent = c.label;
-        btn.addEventListener("pointerup", (e) => {
-          if (e.button != null && e.button !== 0) return;
-          e.preventDefault();
+        this._bindActivate(btn, () => {
           if (c.action) this._pendingAction = c.action;
           if (c.next) {
-            this._session = { name: this._session.name, steps: Array.isArray(c.next) ? c.next : [c.next] };
+            this._session = {
+              name: this._session.name,
+              steps: Array.isArray(c.next) ? c.next : [c.next],
+            };
             this._stepIndex = 0;
             this._renderStep();
           } else {

@@ -89,7 +89,10 @@ export class TouchControls {
 
   show() {
     if (!this.root) return;
+    // Não reaparece em cima do diálogo / pausa
+    if (overlayBlocksLook()) return;
     this.root.hidden = false;
+    document.body.classList.remove("touch-hidden");
     this.input.mobile = true;
     this.input.locked = true;
   }
@@ -97,6 +100,7 @@ export class TouchControls {
   hide() {
     if (!this.root) return;
     this.root.hidden = true;
+    document.body.classList.add("touch-hidden");
     this._resetLook();
     this._resetStick();
     this._resetBtn();
@@ -298,6 +302,7 @@ export class TouchControls {
       }
     };
     const onTouchMove = (e) => {
+      if (this.root?.hidden || overlayBlocksLook()) return;
       for (const t of e.changedTouches) {
         if (move(t.identifier, t.clientX, t.clientY)) {
           e.preventDefault();
@@ -306,6 +311,11 @@ export class TouchControls {
       }
     };
     const onTouchEnd = (e) => {
+      // Se o diálogo abriu no meio do gesto, só limpa — não engole o toque da UI
+      if (this.root?.hidden || overlayBlocksLook()) {
+        if (this._btnPtrId != null) this._resetBtn();
+        return;
+      }
       for (const t of e.changedTouches) {
         if (end(t.identifier)) {
           e.preventDefault();
@@ -396,6 +406,10 @@ export class TouchControls {
 
     const onMove = (e) => {
       if (this._lookId == null) return;
+      if (this.root?.hidden || overlayBlocksLook()) {
+        this._resetLook();
+        return;
+      }
       const points = e.changedTouches
         ? [...e.changedTouches].map((t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }))
         : [{ id: e.pointerId ?? "mouse", x: e.clientX, y: e.clientY }];
@@ -415,6 +429,10 @@ export class TouchControls {
 
     const onEnd = (e) => {
       if (this._lookId == null) return;
+      if (this.root?.hidden || overlayBlocksLook()) {
+        this._resetLook();
+        return;
+      }
       const ids = e.changedTouches
         ? [...e.changedTouches].map((t) => t.identifier)
         : [e.pointerId ?? "mouse"];
