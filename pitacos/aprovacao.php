@@ -39,7 +39,7 @@ require __DIR__ . '/lib.php';
           </div>
         </label>
       </form>
-      <p class="meta">PIN padrão no deploy: veja <code>pitacos/config.php</code> (troca depois).</p>
+      <p class="meta">Só quem tem o PIN de administrador entra. O PIN não fica no site nem no código público.</p>
       <div id="admin-msg" class="msg" role="status"></div>
     </section>
 

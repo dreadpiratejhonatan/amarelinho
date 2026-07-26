@@ -1,0 +1,6 @@
+# Bloqueia leitura HTTP de configs e da pasta de tickets
+<FilesMatch "^(config|config\.local|config\.local\.example)\.php$">
+  Require all denied
+</FilesMatch>
+
+RedirectMatch 404 (?i)/data(/|$)

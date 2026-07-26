@@ -1,16 +1,12 @@
 <?php
 /**
- * Configuração da caixa de pitacos.
- * Altere ADMIN_PIN antes de compartilhar o link de aprovação.
+ * Config pública (sem segredo).
+ * O PIN fica só em config.local.php, gerado no Deploy HostGator
+ * a partir do secret PITACOS_ADMIN_PIN (não vai pro git).
  */
 return [
-  // PIN para /pitacos/aprovacao.php — troque depois do primeiro deploy
-  'admin_pin' => 'boteco',
-  // Fuso do “mesmo dia” (pitacos agrupados por data)
   'timezone' => 'America/Sao_Paulo',
-  // Limite de envios por IP por hora
   'rate_limit_per_hour' => 12,
-  // Tamanhos máximos
   'max_title' => 80,
   'max_body' => 2000,
 ];
