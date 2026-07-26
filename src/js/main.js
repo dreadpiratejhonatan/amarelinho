@@ -10,7 +10,7 @@ import { Sfx } from "./sfx.js";
 import { TouchControls, isTouchDevice } from "./touch.js";
 import { Progress } from "./progress.js";
 import { Settings } from "./settings.js";
-import { Bill, MENU, MENU_ORDER, menuChoice } from "./menu.js";
+import { Bill, MENU, MENU_ORDER, menuChoice, isBrazilLunch } from "./menu.js";
 import { I18n } from "./i18n.js";
 import { LAYOUT, floorHeightAt } from "./layout.js";
 
@@ -583,6 +583,43 @@ class Game {
     });
   }
 
+  /** Pedido com o Val: pode escolher o que quiser — sempre vem gelo e limão. */
+  _valOrderChoices() {
+    const glass = MENU.gelo_limao;
+    const lunch = isBrazilLunch();
+    const asGeloLimao = (label, nextText, angry = false) => ({
+      label,
+      action: angry ? "val_gelo_puto" : "gelo_limao",
+      next: { text: nextText },
+    });
+    return [
+      asGeloLimao(
+        `${MENU.beer.emoji} ${MENU.beer.name}`,
+        `Cerveja? Olha… ${glass.emoji} copo com gelo e limão. R$ ${glass.price}. É o que tem.`
+      ),
+      asGeloLimao(
+        `${MENU.batida.emoji} ${MENU.batida.name}`,
+        `Batida? Sonha. ${glass.emoji} Gelo e limão saindo. R$ ${glass.price}.`
+      ),
+      asGeloLimao(
+        `${MENU.water.emoji} ${MENU.water.name}`,
+        `Água? Quase. ${glass.emoji} Copo com gelo e limão. R$ ${glass.price}.`
+      ),
+      asGeloLimao(
+        "🧊 Copo só com gelo",
+        lunch
+          ? "Na HORA DO ALMOÇO tu pede copo SÓ com gelo?! Tá de sacanagem? Vai gelo E limão e acaba essa conversa."
+          : "Só gelo? Aqui é gelo E limão, irmão. Sem discussão.",
+        lunch
+      ),
+      asGeloLimao(
+        `${glass.emoji} ${glass.name} — R$ ${glass.price}`,
+        `${glass.emoji} Fechado. Gelo e limão, como tem que ser. R$ ${glass.price}.`
+      ),
+      { label: "Deixa pra lá", next: { text: "Quando quiser o copo, é só chamar." } },
+    ];
+  }
+
   _talkTo(def) {
     this.input.exitLock();
     this.state = "dialogue";
@@ -594,6 +631,19 @@ class Game {
         ? pickLine(def.lines.tipThanks || def.lines.greet) + " (você é gente boa)"
         : pickLine(def.lines.greet);
     const story = pickLine(def.lines.story || def.lines.chat);
+    const orderNext =
+      def.id === "val"
+        ? {
+            text: pickLine(def.lines.order),
+            choices: this._valOrderChoices(),
+          }
+        : {
+            text: pickLine(def.lines.order),
+            choices: [
+              ...this._menuChoices(def.id === "carlinhos"),
+              { label: "Deixa pra lá", next: { text: "Quando quiser, é só chamar." } },
+            ],
+          };
     this.dialogue.start(
       {
         name: def.name,
@@ -611,10 +661,7 @@ class Game {
               },
               {
                 label: "Quero pedir uma coisa.",
-                next: {
-                  text: pickLine(def.lines.order),
-                  choices: [...this._menuChoices(def.id === "carlinhos"), { label: "Deixa pra lá", next: { text: "Quando quiser, é só chamar." } }],
-                },
+                next: orderNext,
               },
               {
                 label: this.i18n.t("tip"),
@@ -640,6 +687,10 @@ class Game {
           this.hud.showToast(ok ? this.i18n.t("tipOk") : this.i18n.t("noMoney"), 2200);
           if (ok) this.sfx.coin();
           this._refreshMoney();
+        } else if (action === "val_gelo_puto") {
+          this.progress.annoy("val");
+          this.hud.showToast("Val ficou puto no almoço… mas o copo vem igual.", 2800);
+          this._addOrder("gelo_limao");
         } else if (action && MENU[action]) {
           this._addOrder(action);
         }
@@ -694,7 +745,7 @@ class Game {
       toninho: "Hm. Ok.",
       fabin: "Qualquer coisa é só chamar, campeão!",
       oliveira: "Vai com Deus, meu filho.",
-      val: "Beleza. Tamo aí.",
+      val: "Beleza. Qualquer coisa: gelo e limão.",
       ney: "Volta sempre, hein!",
       carlinhos: "Fechou. Volta na chapa quando quiser.",
     };

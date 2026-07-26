@@ -1,5 +1,5 @@
 /* Bump CACHE together with AMA_BUILD in index.html / scripts/build.mjs */
-const CACHE = "amarelinho-v28";
+const CACHE = "amarelinho-v29";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

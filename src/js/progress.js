@@ -93,6 +93,13 @@ export class Progress {
     return this.data.waiterMood[waiterId] || 0;
   }
 
+  /** Val no almoço: humor cai um degrau. */
+  annoy(waiterId) {
+    const m = this.data.waiterMood[waiterId] || 0;
+    this.data.waiterMood[waiterId] = Math.max(0, m - 1);
+    this.save();
+  }
+
   serveDelayFactor() {
     const moods = Object.values(this.data.waiterMood);
     if (!moods.length) return 1;
