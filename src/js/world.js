@@ -114,10 +114,10 @@ export class World {
 
   _lights() {
     // Night, but bright enough to read the yellow bar
-    const amb = new THREE.AmbientLight(0xfff0d8, 0.55);
+    const amb = new THREE.AmbientLight(0xfff0d8, 0.72);
     this.scene.add(amb);
 
-    const hemi = new THREE.HemisphereLight(0xc8d4f0, 0x4a3018, 0.85);
+    const hemi = new THREE.HemisphereLight(0xd0daf0, 0x5a4020, 1.0);
     this.scene.add(hemi);
 
     const moon = new THREE.DirectionalLight(0xd0dcff, 0.55);

@@ -26,7 +26,7 @@ class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = isTouchDevice() ? 1.65 : 1.35;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 80);
@@ -113,7 +113,10 @@ class Game {
 
     this.hud.setClickHint(playing && !this.input.locked && !this.input.mobile);
 
-    const canLookMove = playing && this.input.locked;
+    // Mobile: sempre “locked” — sem pointer lock no celular
+    if (this.input.mobile) this.input.locked = true;
+
+    const canLookMove = playing && (this.input.locked || this.input.mobile);
     this.player.update(dt, this.input, canLookMove && !this.player.sitting);
 
     let target = null;

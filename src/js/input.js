@@ -87,11 +87,16 @@ export class Input {
       z += this.analog.y;
     }
     const len = Math.hypot(x, z);
-    if (len < 0.05) return { x: 0, z: 0 };
+    if (len < 0.02) return { x: 0, z: 0 };
     return { x: x / len, z: z / len };
   }
 
   sprinting() {
-    return this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    if (this.keys.has("ShiftLeft") || this.keys.has("ShiftRight")) return true;
+    // No celular: stick longe do centro = correr
+    if (this.mobile && this.analog) {
+      return Math.hypot(this.analog.x, this.analog.y) > 0.72;
+    }
+    return false;
   }
 }

@@ -1,17 +1,21 @@
-/** Controles touch mínimos: stick + olhar + botão interagir. */
+/** Controles touch: stick à esquerda, olhar à direita, botão E. */
 
 export function isTouchDevice() {
-  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) return false;
+  const touchPoints = navigator.maxTouchPoints > 0 || "ontouchstart" in window;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const noHover = window.matchMedia("(hover: none)").matches;
-  return coarse || (noHover && navigator.maxTouchPoints > 0);
+  const fineDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  // Desktop com mouse fino e sem coarse → teclado/mouse
+  if (fineDesktop && !coarse) return false;
+  // Celular/tablet: coarse, sem hover, ou tela estreita com touch
+  return coarse || noHover || (touchPoints && Math.min(window.innerWidth, window.innerHeight) <= 920);
 }
 
 export class TouchControls {
   constructor(input) {
     this.input = input;
     this.enabled = false;
-    this.lookSens = 0.4;
+    this.lookSens = 0.55;
     this._joyId = null;
     this._lookId = null;
     this._lookLast = null;
@@ -41,6 +45,8 @@ export class TouchControls {
   show() {
     if (!this.root) return;
     this.root.hidden = false;
+    this.input.mobile = true;
+    this.input.locked = true;
   }
 
   hide() {
@@ -55,11 +61,17 @@ export class TouchControls {
     const onStart = (e) => {
       const t = e.changedTouches[0];
       this._joyId = t.identifier;
+      // Cancela olhar se o mesmo dedo / outro conflito
+      if (this._lookId === this._joyId) {
+        this._lookId = null;
+        this._lookLast = null;
+      }
       const r = zone.getBoundingClientRect();
       this._origin.x = r.left + r.width / 2;
       this._origin.y = r.top + r.height / 2;
       this._updateStick(t.clientX, t.clientY);
       e.preventDefault();
+      e.stopPropagation();
     };
     const onMove = (e) => {
       for (const t of e.changedTouches) {
@@ -83,19 +95,20 @@ export class TouchControls {
       }
     };
     zone.addEventListener("touchstart", onStart, { passive: false });
-    window.addEventListener("touchmove", onMove, { passive: false });
-    window.addEventListener("touchend", onEnd, { passive: false });
-    window.addEventListener("touchcancel", onEnd, { passive: false });
+    zone.addEventListener("touchmove", onMove, { passive: false });
+    zone.addEventListener("touchend", onEnd, { passive: false });
+    zone.addEventListener("touchcancel", onEnd, { passive: false });
   }
 
   _updateStick(x, y) {
     const dx = x - this._origin.x;
     const dy = y - this._origin.y;
-    const max = 48;
+    const max = 56;
     const len = Math.hypot(dx, dy) || 1;
     const clamped = Math.min(len, max);
     const nx = (dx / len) * clamped;
     const ny = (dy / len) * clamped;
+    // Dedo pra cima (ny < 0) → frente (analog.y < 0 no eixo WASD do jogo)
     this.input.analog.x = nx / max;
     this.input.analog.y = ny / max;
     if (this.knob) {
@@ -110,10 +123,14 @@ export class TouchControls {
     zone.addEventListener(
       "touchstart",
       (e) => {
-        if (this._joyId != null) return;
-        const t = e.changedTouches[0];
-        this._lookId = t.identifier;
-        this._lookLast = { x: t.clientX, y: t.clientY };
+        if (e.target.closest("#touch-stick, #touch-interact, .touch__stick, .touch__btn")) return;
+        // Só o primeiro dedo livre (não o do stick)
+        for (const t of e.changedTouches) {
+          if (t.identifier === this._joyId) continue;
+          this._lookId = t.identifier;
+          this._lookLast = { x: t.clientX, y: t.clientY };
+          break;
+        }
       },
       { passive: true }
     );
