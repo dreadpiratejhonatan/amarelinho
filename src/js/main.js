@@ -86,7 +86,10 @@ class Game {
       this.sfx.click();
       this.start();
     });
-    document.getElementById("btn-pause")?.addEventListener("click", () => {
+    document.getElementById("btn-pause")?.addEventListener("pointerup", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
       this.sfx.click();
       this.pause();
     });
