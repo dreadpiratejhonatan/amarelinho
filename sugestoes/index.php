@@ -19,42 +19,21 @@ $today = ama_today();
   <main class="wrap">
     <p class="kicker">Caixa do boteco · <?= ama_h($today) ?></p>
     <h1 class="brand">SUGESTÕES</h1>
-    <p class="lead">
-      Em vez de mandar no Zap, escreve aqui a ideia pra mudar o Amarelinho.
-      Cada envio vira um ticket do dia. Depois a gente aprova, monta o prompt e sobe pra produção.
-    </p>
+    <p class="lead">Escreve a ideia e manda. Sem nome, sem cadastro.</p>
 
     <nav class="nav">
       <a href="../">← Voltar pro bar</a>
-      <a href="aprovacao.php">Aprovação (dono)</a>
     </nav>
 
     <section class="card">
       <form id="suggest-form">
         <label>
-          Seu nome (opcional)
-          <input name="author" maxlength="40" placeholder="Ex: Ju, Pedrão…" autocomplete="nickname" />
+          Sua sugestão
+          <textarea name="body" maxlength="2000" required placeholder="O que mudar no Amarelinho?"></textarea>
         </label>
-        <label>
-          Título curto
-          <input name="title" maxlength="80" required placeholder="Ex: Mais luz na calçada" />
-        </label>
-        <label>
-          O que mudar?
-          <textarea name="body" maxlength="2000" required placeholder="Conta com calma: o que tá estranho, o que quer ver no bar…"></textarea>
-        </label>
-        <button class="btn" type="submit">Enviar ticket de hoje</button>
+        <button class="btn" type="submit">Enviar</button>
       </form>
       <div id="suggest-msg" class="msg" role="status"></div>
-      <p id="today-count" class="meta">Carregando contagem do dia…</p>
-    </section>
-
-    <section class="card">
-      <h2 class="day-title" style="font-size:22px">Como rola</h2>
-      <p class="lead" style="margin:0">
-        1) Você manda a ideia · 2) o dono aprova no painel · 3) os tickets aprovados do <strong>mesmo dia</strong>
-        viram um prompt só · 4) o agente aplica e publica.
-      </p>
     </section>
   </main>
   <script src="app.js"></script>

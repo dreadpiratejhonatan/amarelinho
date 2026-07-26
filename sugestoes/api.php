@@ -57,11 +57,7 @@ try {
     if (!ama_rate_ok(ama_client_ip())) {
       ama_json_response(['ok' => false, 'error' => 'Calma aí — muitas sugestões deste IP. Tenta de novo em uma hora.'], 429);
     }
-    $ticket = ama_create_ticket(
-      (string) ($body['author'] ?? ''),
-      (string) ($body['title'] ?? ''),
-      (string) ($body['body'] ?? '')
-    );
+    $ticket = ama_create_ticket((string) ($body['body'] ?? ''));
     unset($ticket['ip']);
     ama_json_response(['ok' => true, 'ticket' => $ticket]);
   }

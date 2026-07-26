@@ -28,50 +28,23 @@ function wirePublicForm() {
   const form = document.getElementById("suggest-form");
   if (!form) return;
   const msg = document.getElementById("suggest-msg");
-  const countEl = document.getElementById("today-count");
-
-  api("today_count")
-    .then((d) => {
-      if (countEl) {
-        countEl.textContent =
-          d.count === 0
-            ? `Nenhuma sugestão ainda hoje (${d.day}).`
-            : `${d.count} sugestão(ões) hoje · ${d.pending} aguardando aprovação.`;
-      }
-    })
-    .catch(() => {
-      if (countEl) {
-        countEl.textContent =
-          "Servidor de sugestões indisponível aqui (precisa do PHP na HostGator). Em produção: /amarelinho/sugestoes/";
-      }
-    });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = form.querySelector('button[type="submit"]');
-    const author = form.author.value.trim();
-    const title = form.title.value.trim();
     const body = form.body.value.trim();
-    if (!title || !body) {
-      showMsg(msg, "Escreve um título e a sugestão.", false);
+    if (!body) {
+      showMsg(msg, "Escreve a sugestão.", false);
       return;
     }
     btn.disabled = true;
     try {
-      const data = await api("submit", {
+      await api("submit", {
         method: "POST",
-        body: { author, title, body },
+        body: { body },
       });
       form.reset();
-      showMsg(
-        msg,
-        `Ticket ${data.ticket.id} enviado pro dia ${data.ticket.day}. Valeu! Agora espera a aprovação.`,
-        true
-      );
-      const d = await api("today_count");
-      if (countEl) {
-        countEl.textContent = `${d.count} sugestão(ões) hoje · ${d.pending} aguardando aprovação.`;
-      }
+      showMsg(msg, "Enviado. Valeu!", true);
     } catch (err) {
       showMsg(msg, err.message || "Não rolou enviar.", false);
     } finally {
@@ -126,9 +99,9 @@ function wireAdmin() {
       const title = document.createElement("div");
       title.className = "ticket__title";
       title.textContent = t.title;
-      const author = document.createElement("div");
-      author.className = "ticket__author";
-      author.textContent = `${t.author || "Anônimo"} · ${t.createdAt || ""}`;
+      const when = document.createElement("div");
+      when.className = "ticket__author";
+      when.textContent = t.createdAt || "";
       const body = document.createElement("div");
       body.className = "ticket__body";
       body.textContent = t.body || "";
@@ -158,7 +131,7 @@ function wireAdmin() {
       if (t.status !== "rejected") actions.append(mk("Recusar", "rejected", true));
       if (t.status !== "pending") actions.append(mk("Voltar p/ pendente", "pending", true));
       if (t.status === "approved") actions.append(mk("Marcar no ar", "shipped", true));
-      card.append(head, title, author, body, actions);
+      card.append(head, title, when, body, actions);
       listEl.appendChild(card);
     }
   }

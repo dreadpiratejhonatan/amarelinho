@@ -11,7 +11,6 @@ return [
   // Limite de envios por IP por hora
   'rate_limit_per_hour' => 12,
   // Tamanhos máximos
-  'max_author' => 40,
   'max_title' => 80,
   'max_body' => 2000,
 ];
