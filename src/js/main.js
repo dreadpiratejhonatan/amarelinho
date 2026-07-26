@@ -23,7 +23,7 @@ class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = isTouchDevice() ? 1.65 : 1.35;
@@ -42,6 +42,8 @@ class Game {
     this.state = "menu";
     this._last = performance.now();
     this._ordered = false;
+    /** Desktop: pausa ao sair da aba / perder pointer lock até clicar de novo. */
+    this._softPaused = false;
 
     this.btnPlay.addEventListener("click", () => {
       this.sfx.resume();
@@ -50,7 +52,31 @@ class Game {
     });
     this.canvas.addEventListener("click", () => {
       if (this.state === "playing" && !this.dialogue.open && !this.input.mobile) {
+        this._softPaused = false;
+        this.input.clearHeld();
+        this.sfx.resume();
         this.input.requestLock();
+      }
+    });
+    this.input.onLockLost = () => {
+      if (this.input.mobile) return;
+      if (this.state !== "playing" && this.state !== "dialogue") return;
+      this._softPaused = true;
+      this.input.clearHeld();
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.input.clearHeld();
+        if (!this.input.mobile && this.state === "playing") this._softPaused = true;
+        return;
+      }
+      // Voltou pra aba: zera dt e teclas; precisa clicar de novo (pointer lock exige gesto)
+      this._last = performance.now();
+      this.input.clearHeld();
+      this.sfx.resume();
+      if (!this.input.mobile && this.state === "playing" && !this.dialogue.open) {
+        this._softPaused = true;
+        this.hud.showToast("Clique na tela para continuar.", 3200);
       }
     });
     window.addEventListener("resize", () => this._onResize());
@@ -68,6 +94,7 @@ class Game {
     this.menu.setAttribute("aria-hidden", "true");
     this.hud.show();
     this.state = "playing";
+    this._softPaused = false;
     this.player.position.set(0.5, CONFIG.eyeHeight, 7.2);
     this.player.yaw = Math.PI;
     this.player.pitch = -0.05;
@@ -98,9 +125,16 @@ class Game {
     const inDialogue = this.dialogue.open;
     const playing = this.state === "playing" && !inDialogue;
 
+    // Aba em segundo plano: não simula (evita “pulo” e teclas fantasmas)
+    if (document.hidden) {
+      this.input.clearHeld();
+      return;
+    }
+
     if (this.input.consumeEscape()) {
       if (inDialogue) {
         this.dialogue.close();
+        this._softPaused = false;
         this.input.requestLock();
       } else if (this.player.sitting) {
         this.player.standUp();
@@ -108,15 +142,19 @@ class Game {
         this.hud.showToast("Levantou da mesa.", 1600);
       } else if (!this.input.mobile) {
         this.input.exitLock();
+        this._softPaused = true;
       }
     }
 
-    this.hud.setClickHint(playing && !this.input.locked && !this.input.mobile);
+    const needsClick = playing && !this.input.mobile && (!this.input.locked || this._softPaused);
+    this.hud.setClickHint(needsClick);
 
     // Mobile: sempre “locked” — sem pointer lock no celular
     if (this.input.mobile) this.input.locked = true;
+    if (this.input.locked && !this.input.mobile) this._softPaused = false;
 
-    const canLookMove = playing && (this.input.locked || this.input.mobile);
+    const canLookMove =
+      playing && !this._softPaused && (this.input.locked || this.input.mobile);
     this.player.update(dt, this.input, canLookMove && !this.player.sitting);
 
     let target = null;
@@ -194,6 +232,7 @@ class Game {
       },
       (action) => {
         this.state = "playing";
+        this._softPaused = false;
         if (action === "order") {
           this._ordered = true;
           this.sfx.order();
@@ -250,6 +289,7 @@ class Game {
       },
       (action) => {
         this.state = "playing";
+        this._softPaused = false;
         if (action) {
           this._ordered = true;
           this.sfx.order();

@@ -9,6 +9,8 @@ export class Input {
     this.analog = { x: 0, y: 0 };
     this.interactPressed = false;
     this.escapePressed = false;
+    /** Fires when pointer lock is lost while desktop (tab switch, Alt+Tab, Esc). */
+    this.onLockLost = null;
 
     window.addEventListener("keydown", (e) => {
       const k = e.code;
@@ -21,18 +23,41 @@ export class Input {
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
 
+    // Alt+Tab / troca de aba: keyup não chega → teclas ficam “presas” e o personagem some andando
+    const clearStuck = () => this.clearHeld();
+    window.addEventListener("blur", clearStuck);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) clearStuck();
+    });
+
     document.addEventListener("pointerlockchange", () => {
       if (this.mobile) {
         this.locked = true;
         return;
       }
+      const wasLocked = this.locked;
       this.locked = document.pointerLockElement === canvas;
+      if (wasLocked && !this.locked) {
+        this.clearHeld();
+        this.onLockLost?.();
+      }
     });
     canvas.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
       this.lookDX += e.movementX;
       this.lookDY += e.movementY;
     });
+  }
+
+  /** Limpa WASD/look presos (troca de aba, perda de foco). */
+  clearHeld() {
+    this.keys.clear();
+    this.lookDX = 0;
+    this.lookDY = 0;
+    this.analog.x = 0;
+    this.analog.y = 0;
+    this.interactPressed = false;
+    this.escapePressed = false;
   }
 
   requestLock() {
