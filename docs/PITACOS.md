@@ -1,29 +1,22 @@
-# Fluxo padrão de pitacos
-
-Sempre o mesmo caminho — um lote por dia (fuso `America/Sao_Paulo`).
+# Pitacos — fluxo do dono
 
 ```
-Galera manda  →  Novo  →  Aprovar  →  Copiar prompt  →  Cursor Agent  →  Deploy verde  →  No ar
- /pitacos/        painel    painel       painel           PR cursor/*      HostGator         painel
+Galera manda → Dono aprova → Copia pedido → Cursor implementa → No ar
 ```
 
-## Status
+## Painel
 
-| Status | Label | Significado |
-| --- | --- | --- |
-| `pending` | Novo | Acabou de chegar |
-| `approved` | Aprovado | Entra no prompt do lote |
-| `shipped` | No ar | Já está em produção |
-| `rejected` | Recusado | Fora do lote |
+https://jhonatanribeiro.com/amarelinho/pitacos/aprovacao.php
 
-## Admin
+1. **Novos** — Aprovar / Recusar  
+2. **Aprovados** — Copiar pedido do dia → colar no Cursor  
+3. **No ar** — quando já estiver no site, marcar
 
-URL: https://jhonatanribeiro.com/amarelinho/pitacos/aprovacao.php  
+## Agente (Cursor)
 
-PIN: secret GitHub `PITACOS_ADMIN_PIN` (nunca no git).
+O texto copiado já traz regras de branch, `AMA_BUILD`, build e deploy.  
+Depois do Deploy HostGator verde, o dono marca o lote como **No ar**.
 
-1. Aprovar novos (ou “Aprovar todos”)
-2. Copiar prompt do lote
-3. Colar no Cursor Agent
-4. Esperar auto-merge + Deploy HostGator verde
-5. “Marcar lote no ar”
+## PIN
+
+Secret GitHub `PITACOS_ADMIN_PIN` — nunca no repositório.
