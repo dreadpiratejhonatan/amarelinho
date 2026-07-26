@@ -35,3 +35,11 @@ Docs: [`docs/MOBILE-AUTO-PROD.md`](docs/MOBILE-AUTO-PROD.md), [`docs/DEPLOY.md`]
 - Portuguese UI copy by default; settings may switch EN labels.
 - Prefer small, shippable changes; keep touch controls working.
 - Never commit FTP passwords or `.env` secrets.
+
+## Cursor Cloud specific instructions
+
+- Static Three.js game — no backend/DB/API. Run end-to-end with just Node + `npm install` + the dev static server.
+- On Linux use `npm run dev` (alias of `npm run start`, `serve` on http://127.0.0.1:5174/). `npm run start:win` is Windows/PowerShell only — do not use it here.
+- Dev mode has no bundling: `index.html` uses an importmap pointing at `/node_modules/three`, so `npm install` must have run and the server must serve from the repo root. Preview the built bundle with `npm run preview` (:5184).
+- No test or lint scripts exist. CI (`.github/workflows/ci.yml`) only runs `npm run build` and smoke-checks that `release/hostgator-amarelinho/{index.html,game.js,styles/styles.css}` exist and `index.html` contains `AMA_BUILD`. Validate changes by building and by playing at :5174.
+- Gameplay: the browser opens a start screen ("ENTRAR NO BAR"); click it to enter the 3D bar. WASD moves, mouse look uses pointer lock (needs relative movement/drag), E interacts.
