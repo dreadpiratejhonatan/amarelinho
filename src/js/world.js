@@ -476,6 +476,34 @@ export class World {
     }
   }
 
+  _awning() {
+    const cloth = meshBox(28, 0.1, 5.8, 0xe8b000, {
+      roughness: 0.9,
+      emissive: 0x886600,
+      emissiveIntensity: 0.22,
+    });
+    cloth.position.set(0, 3.25, 2.4);
+    cloth.rotation.x = -0.05;
+    this.group.add(cloth);
+
+    for (const x of [-12, -6, 0, 6, 12]) {
+      const arm = meshBox(0.07, 0.07, 5.2, 0x333333, { metalness: 0.45, roughness: 0.4 });
+      arm.position.set(x, 3.12, 2.2);
+      this.group.add(arm);
+      const pole = meshCyl(0.045, 0.045, 3.1, 0x2a2a2a, { metalness: 0.5, roughness: 0.4 });
+      pole.position.set(x, 1.55, 4.8);
+      this.group.add(pole);
+    }
+
+    const val = meshBox(28, 0.4, 0.1, 0xffd400, {
+      roughness: 0.8,
+      emissive: 0xaa8800,
+      emissiveIntensity: 0.2,
+    });
+    val.position.set(0, 2.95, 5.2);
+    this.group.add(val);
+  }
+
   _makeTable(x, z, rot = 0, dark = true, floorY = 0) {
     const wood = dark ? 0x1a1410 : CONFIG.colors.woodLight;
     const g = new THREE.Group();
