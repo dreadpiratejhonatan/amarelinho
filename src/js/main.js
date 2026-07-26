@@ -176,8 +176,8 @@ class Game {
       this.input.consumeInteract();
     }
 
-    for (const w of this.world.waiters) {
-      w.mesh.position.y = Math.sin(now * 0.002 + w.position.x) * 0.015;
+    if (playing || this.state === "menu" || this.state === "dialogue") {
+      this.world.updateNpcs(dt);
     }
   }
 

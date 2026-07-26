@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { WAITERS, buildWaiterMesh } from "./npcs.js";
+import { WAITERS, buildWaiterMesh, randomCustomerDef, buildCustomerMesh } from "./npcs.js";
+import { NpcAgent } from "./npcAi.js";
 
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
@@ -230,6 +231,8 @@ export class World {
     this.interactables = [];
     this.seats = [];
     this.waiters = [];
+    this.customers = [];
+    this.npcAgents = [];
     this.group = new THREE.Group();
     this.scene.add(this.group);
     this._awningLights = [];
@@ -246,6 +249,7 @@ export class World {
     this._furniture();
     this._streetProps();
     this._spawnWaiters();
+    this._spawnCustomers();
   }
 
   _lights() {
@@ -980,16 +984,76 @@ export class World {
       mesh.position.set(s.x, 0, s.z);
       mesh.rotation.y = s.rot;
       this.group.add(mesh);
-      this.waiters.push({ def, mesh, position: new THREE.Vector3(s.x, 0, s.z) });
-      this.interactables.push({
+      const interactable = {
         kind: "waiter",
         id: def.id,
         label: `Falar com ${def.name}`,
         position: new THREE.Vector3(s.x, 1.4, s.z),
         radius: 1.7,
         def,
-      });
-      addWallCollider(this.colliders, s.x, s.z, 0.45, 0.45);
+      };
+      this.waiters.push({ def, mesh, position: mesh.position });
+      this.interactables.push(interactable);
+      this.npcAgents.push(
+        new NpcAgent({
+          mesh,
+          kind: "waiter",
+          zones: ["interior", "sidewalk"],
+          speed: 1.4,
+          interactable,
+        })
+      );
+    }
+  }
+
+  /** Clientes novos a cada carregamento — aparência e quantidade aleatórias. */
+  _spawnCustomers() {
+    const usedNames = new Set();
+    const count = 8 + Math.floor(Math.random() * 5); // 8–12
+    const spawnPads = [
+      ...[
+        [-7, 3], [-4, 4], [-1, 5], [2, 3.5], [5, 4.5], [7, 3],
+        [-5, 6], [0, 6.5], [4, 7], [-2, 2.2], [3, 2.5],
+        [-3, -1], [1, -2], [4.5, 0.5], [-6, 1.5],
+      ],
+    ];
+
+    // Embaralha pads
+    for (let i = spawnPads.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [spawnPads[i], spawnPads[j]] = [spawnPads[j], spawnPads[i]];
+    }
+
+    for (let i = 0; i < count; i++) {
+      const def = randomCustomerDef(usedNames);
+      const mesh = buildCustomerMesh(def);
+      const [sx, sz] = spawnPads[i % spawnPads.length];
+      const x = sx + (Math.random() - 0.5) * 0.6;
+      const z = sz + (Math.random() - 0.5) * 0.6;
+      mesh.position.set(x, 0, z);
+      mesh.rotation.y = Math.random() * Math.PI * 2;
+      this.group.add(mesh);
+      this.customers.push({ def, mesh });
+      const zones =
+        Math.random() < 0.35
+          ? ["interior", "sidewalk"]
+          : Math.random() < 0.5
+            ? ["sidewalk", "street"]
+            : ["sidewalk", "interior", "street"];
+      this.npcAgents.push(
+        new NpcAgent({
+          mesh,
+          kind: "customer",
+          zones,
+          speed: 0.95 + Math.random() * 0.45,
+        })
+      );
+    }
+  }
+
+  updateNpcs(dt) {
+    for (const agent of this.npcAgents) {
+      agent.update(dt, this.npcAgents, this);
     }
   }
 

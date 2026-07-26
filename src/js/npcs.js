@@ -154,6 +154,20 @@ export const WAITERS = [
   },
 ];
 
+const CUSTOMER_NAMES = [
+  "João", "Maria", "Pedro", "Ana", "Lucas", "Bia", "Rafa", "Ju", "Diego", "Cami",
+  "Bruno", "Léo", "Paula", "Tiago", "Fê", "Guga", "Carol", "Duda", "Igor", "Nina",
+  "Theo", "Lara", "Caio", "Mel", "Vini", "Pri", "Hugo", "Sofia", "Enzo", "Lia",
+  "Kaique", "Yasmin", "Murilo", "Isis", "Davi", "Alice", "Heitor", "Helena",
+];
+
+const SKINS = [0xc68642, 0xd9a066, 0x5c3a28, 0x4a2c1a, 0xe0ac69, 0x8d5524, 0xf1c27d, 0xc4a484, 0x3b2314];
+const HAIRS = [0x1a120e, 0x2a1a10, 0x3b2414, 0x5a3a20, 0x9a9a9a, 0xf2f2f0, 0x6b4423, 0x111111, 0xc45c26];
+const SHIRTS = [0x2a4a7a, 0x8b2020, 0x2d6a3e, 0xc9a000, 0x3a3a48, 0x6b3fa0, 0xd4782a, 0x1a5f7a, 0xb85c38, 0xeeeeee];
+const PANTS = [0x1a1a22, 0x2a3548, 0x3a2a1a, 0x222228, 0x4a5568];
+const HAIR_STYLES = ["short", "medium", "baldish", "cap", "short-white"];
+const FACES = ["neutral", "smile", "kind", "grumpy"];
+
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
     color,
@@ -175,6 +189,10 @@ function sphere(r, color, opts) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), mat(color, opts));
   m.castShadow = true;
   return m;
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function makeNametag(name) {
@@ -202,8 +220,30 @@ function makeNametag(name) {
   return sprite;
 }
 
+function makeChatBubble() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(255, 246, 214, 0.92)";
+  ctx.fillRect(12, 8, 104, 40);
+  ctx.fillStyle = "#1a1408";
+  ctx.font = "bold 28px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("…", 64, 30);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })
+  );
+  sprite.scale.set(0.55, 0.28, 1);
+  sprite.position.y = 2.35;
+  sprite.visible = false;
+  return sprite;
+}
+
 function makeLogoBadge() {
-  // Red/gold Amarelinho shield on the back of the shirt (generic, no third-party brands)
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 128;
@@ -240,39 +280,11 @@ function makeLogoBadge() {
   return badge;
 }
 
-/** Low-poly waiter mesh com traços distintos + nametag. */
-export function buildWaiterMesh(def) {
-  const root = new THREE.Group();
-  root.name = def.id;
-  const scale = def.height || 1;
-  const bodyRoot = new THREE.Group();
-  bodyRoot.scale.setScalar(scale);
-  root.add(bodyRoot);
-
-  const body = box(0.42, 0.62, 0.24, 0x151515);
-  body.position.y = 1.05;
-  bodyRoot.add(body);
-
-  // Amarelinho logo on back
-  bodyRoot.add(makeLogoBadge());
-
-  const apron = box(0.44, 0.38, 0.06, 0x111111);
-  apron.position.set(0, 0.92, 0.14);
-  bodyRoot.add(apron);
-
-  const legs = box(0.36, 0.55, 0.22, 0x1a1a1a);
-  legs.position.y = 0.4;
-  bodyRoot.add(legs);
-
-  const shoes = box(0.4, 0.08, 0.28, 0x0a0a0a);
-  shoes.position.y = 0.06;
-  bodyRoot.add(shoes);
-
+function addFaceAndHair(bodyRoot, def) {
   const head = sphere(0.18, def.skin);
   head.position.y = 1.52;
   bodyRoot.add(head);
 
-  // Eyes
   const eyeL = sphere(0.03, 0xf5f5f5);
   eyeL.position.set(-0.06, 1.54, 0.15);
   const eyeR = eyeL.clone();
@@ -284,7 +296,6 @@ export function buildWaiterMesh(def) {
   pupilR.position.x = 0.06;
   bodyRoot.add(pupilL, pupilR);
 
-  // Face marks
   if (def.face === "grumpy") {
     const brow = box(0.24, 0.035, 0.04, 0x2a1a10);
     brow.position.set(0, 1.6, 0.15);
@@ -313,9 +324,8 @@ export function buildWaiterMesh(def) {
     bodyRoot.add(mouth);
   }
 
-  // Hair / hat
   if (def.hairStyle === "cap") {
-    const cap = box(0.4, 0.12, 0.42, 0x1a1a1a);
+    const cap = box(0.4, 0.12, 0.42, def.capColor ?? 0x1a1a1a);
     cap.position.set(0, 1.7, 0.02);
     bodyRoot.add(cap);
     const bill = box(0.24, 0.045, 0.2, 0x222222);
@@ -339,12 +349,95 @@ export function buildWaiterMesh(def) {
     fringe.position.set(0, 1.65, -0.1);
     bodyRoot.add(fringe);
   }
+}
 
-  // Nametag sprite
+/** Low-poly waiter mesh com traços distintos + nametag. */
+export function buildWaiterMesh(def) {
+  const root = new THREE.Group();
+  root.name = def.id;
+  const scale = def.height || 1;
+  const bodyRoot = new THREE.Group();
+  bodyRoot.scale.setScalar(scale);
+  root.add(bodyRoot);
+
+  const body = box(0.42, 0.62, 0.24, 0x151515);
+  body.position.y = 1.05;
+  bodyRoot.add(body);
+  bodyRoot.add(makeLogoBadge());
+
+  const apron = box(0.44, 0.38, 0.06, 0x111111);
+  apron.position.set(0, 0.92, 0.14);
+  bodyRoot.add(apron);
+
+  const legs = box(0.36, 0.55, 0.22, 0x1a1a1a);
+  legs.position.y = 0.4;
+  bodyRoot.add(legs);
+
+  const shoes = box(0.4, 0.08, 0.28, 0x0a0a0a);
+  shoes.position.y = 0.06;
+  bodyRoot.add(shoes);
+
+  addFaceAndHair(bodyRoot, def);
   root.add(makeNametag(def.name));
-
+  const bubble = makeChatBubble();
+  root.add(bubble);
   root.userData.npcId = def.id;
   root.userData.kind = "waiter";
+  root.userData.chatBubble = bubble;
+  return root;
+}
+
+/** Cliente casual — aparência muda a cada acesso. */
+export function randomCustomerDef(usedNames = new Set()) {
+  let name = pick(CUSTOMER_NAMES);
+  let guard = 0;
+  while (usedNames.has(name) && guard++ < 40) name = pick(CUSTOMER_NAMES);
+  usedNames.add(name);
+  return {
+    id: `cust_${name.toLowerCase()}_${Math.random().toString(36).slice(2, 7)}`,
+    name,
+    skin: pick(SKINS),
+    hair: pick(HAIRS),
+    hairStyle: pick(HAIR_STYLES),
+    face: pick(FACES),
+    height: 0.92 + Math.random() * 0.14,
+    shirt: pick(SHIRTS),
+    pants: pick(PANTS),
+    capColor: pick([0x1a1a1a, 0x8b2020, 0x2a4a7a, 0x222222]),
+  };
+}
+
+export function buildCustomerMesh(def) {
+  const root = new THREE.Group();
+  root.name = def.id;
+  const scale = def.height || 1;
+  const bodyRoot = new THREE.Group();
+  bodyRoot.scale.setScalar(scale);
+  root.add(bodyRoot);
+
+  const body = box(0.4, 0.58, 0.22, def.shirt);
+  body.position.y = 1.05;
+  bodyRoot.add(body);
+
+  const legs = box(0.34, 0.52, 0.2, def.pants);
+  legs.position.y = 0.4;
+  bodyRoot.add(legs);
+
+  const shoes = box(0.38, 0.07, 0.26, 0x1a1410);
+  shoes.position.y = 0.06;
+  bodyRoot.add(shoes);
+
+  addFaceAndHair(bodyRoot, def);
+
+  const tag = makeNametag(def.name);
+  tag.scale.set(0.95, 0.24, 1);
+  root.add(tag);
+  const bubble = makeChatBubble();
+  root.add(bubble);
+
+  root.userData.npcId = def.id;
+  root.userData.kind = "customer";
+  root.userData.chatBubble = bubble;
   return root;
 }
 
