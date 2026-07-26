@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
+$assetV = '20260726c';
+header('Cache-Control: no-store, no-cache, must-revalidate');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,24 +15,18 @@ require __DIR__ . '/lib.php';
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=<?= ama_h($assetV) ?>" />
 </head>
 <body>
   <main class="wrap wrap--admin">
     <p class="kicker">Comanda do dono</p>
     <h1 class="brand">PITACOS</h1>
-    <p class="lead">Aprova o que a galera mandou. Depois manda pro bar. Simples assim.</p>
+    <p class="lead">Lê o texto, aprova, manda pro bar.</p>
 
     <nav class="nav">
       <a href="./">← Caixa da galera</a>
       <a href="../">Bar</a>
     </nav>
-
-    <ol class="pipeline" aria-label="Fluxo">
-      <li class="pipeline__step" data-step="1"><span>1</span> Novos</li>
-      <li class="pipeline__step" data-step="2"><span>2</span> Aprovados</li>
-      <li class="pipeline__step" data-step="3"><span>3</span> No ar</li>
-    </ol>
 
     <section class="card" id="login-card">
       <form id="pin-form">
@@ -58,18 +54,17 @@ require __DIR__ . '/lib.php';
         <p id="day-stats" class="meta meta--stats"></p>
       </div>
 
+      <!-- NOVOS primeiro — o texto tem que aparecer na cara -->
       <section class="card flow-card">
-        <h2 class="day-title">1 · Novos</h2>
-        <p class="flow-help">O que chegou pra você olhar.</p>
-        <div class="row-actions">
-          <button type="button" class="btn" id="btn-approve-all">Aprovar todos</button>
+        <h2 class="day-title" id="title-pending">Pra aprovar</h2>
+        <div id="list-pending" class="ticket-list ticket-list--hero"></div>
+        <div class="row-actions" style="margin-top:14px">
+          <button type="button" class="btn btn--ghost" id="btn-approve-all">Aprovar todos</button>
         </div>
-        <div id="list-pending" class="ticket-list"></div>
       </section>
 
       <section class="card flow-card">
-        <h2 class="day-title">2 · Aprovados</h2>
-        <p class="flow-help">Esses vão pro bar. Copia o pedido e manda no Cursor.</p>
+        <h2 class="day-title" id="title-approved">Aprovados</h2>
         <div id="list-approved" class="ticket-list"></div>
         <textarea id="day-prompt" class="prompt-box" hidden readonly aria-hidden="true"></textarea>
         <div class="row-actions">
@@ -78,8 +73,8 @@ require __DIR__ . '/lib.php';
       </section>
 
       <section class="card flow-card">
-        <h2 class="day-title">3 · No ar</h2>
-        <p class="flow-help">Já tá no site? Fecha a comanda do dia.</p>
+        <h2 class="day-title" id="title-shipped">No ar</h2>
+        <p class="flow-help">Já entrou no site? Fecha aqui.</p>
         <div class="row-actions">
           <button type="button" class="btn" id="btn-ship-all">Marcar como no ar</button>
         </div>
@@ -87,11 +82,11 @@ require __DIR__ . '/lib.php';
       </section>
 
       <section class="card flow-card flow-card--muted">
-        <h2 class="day-title" style="font-size:22px">Recusados</h2>
+        <h2 class="day-title" style="font-size:22px" id="title-rejected">Recusados</h2>
         <div id="list-rejected" class="ticket-list"></div>
       </section>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=<?= ama_h($assetV) ?>"></script>
 </body>
 </html>

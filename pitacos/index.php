@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
+$assetV = '20260726c';
+header('Cache-Control: no-store, no-cache, must-revalidate');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,7 +15,7 @@ require __DIR__ . '/lib.php';
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=<?= ama_h($assetV) ?>" />
 </head>
 <body class="page-suggest">
   <div class="glow" aria-hidden="true"></div>
@@ -55,6 +57,6 @@ require __DIR__ . '/lib.php';
     </p>
   </main>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=<?= ama_h($assetV) ?>"></script>
 </body>
 </html>

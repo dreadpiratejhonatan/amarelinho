@@ -79,8 +79,77 @@ function statusBadge(status) {
   return span;
 }
 
-function emptyHtml(text) {
-  return `<p class="empty">${text}</p>`;
+function fillList(el, tickets, mode, emptyText) {
+  if (!el) return;
+  el.replaceChildren();
+  if (!tickets.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = emptyText;
+    el.appendChild(p);
+    return;
+  }
+  for (const t of tickets) {
+    el.appendChild(renderTicket(t, mode));
+  }
+}
+
+function renderTicket(t, mode) {
+  const card = document.createElement("article");
+  card.className = mode === "pending" ? "ticket ticket--novo" : "ticket";
+
+  const body = document.createElement("div");
+  body.className = "ticket__body";
+  body.textContent = (t.body || t.title || "(sem texto)").trim();
+
+  const meta = document.createElement("div");
+  meta.className = "ticket__head";
+  const id = document.createElement("span");
+  id.className = "ticket__id";
+  id.textContent = t.id || "";
+  meta.append(id, statusBadge(t.status || "pending"));
+
+  const when = document.createElement("div");
+  when.className = "ticket__author";
+  when.textContent = t.createdAt || "";
+
+  const actions = document.createElement("div");
+  actions.className = "row-actions";
+
+  const setStatus = (status, label, primary = false) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = primary ? "btn" : "btn btn--ghost";
+    b.textContent = label;
+    b.addEventListener("click", async () => {
+      const msg = document.getElementById("admin-msg");
+      try {
+        await api("status", {
+          method: "POST",
+          body: { day: t.day, id: t.id, status },
+        });
+        const daySelect = document.getElementById("day-select");
+        await window.__amaRefresh?.(daySelect?.value || t.day);
+        showMsg(msg, `${STATUS_LABEL[status] || status}.`, true);
+      } catch (err) {
+        showMsg(msg, err.message, false);
+      }
+    });
+    return b;
+  };
+
+  if (mode === "pending") {
+    actions.append(setStatus("approved", "Aprovar", true), setStatus("rejected", "Recusar"));
+  } else if (mode === "approved") {
+    actions.append(setStatus("pending", "Voltar"));
+  } else if (mode === "rejected") {
+    actions.append(setStatus("pending", "Reabrir"));
+  }
+
+  // Texto primeiro — é o que importa pra aprovar
+  card.append(body, meta, when);
+  if (actions.childNodes.length) card.append(actions);
+  return card;
 }
 
 function wireAdmin() {
@@ -93,119 +162,50 @@ function wireAdmin() {
   const daySelect = document.getElementById("day-select");
   const promptEl = document.getElementById("day-prompt");
   const statsEl = document.getElementById("day-stats");
-  const lists = {
-    pending: document.getElementById("list-pending"),
-    approved: document.getElementById("list-approved"),
-    shipped: document.getElementById("list-shipped"),
-    rejected: document.getElementById("list-rejected"),
-  };
-
-  function paintPipeline(stats) {
-    const pending = stats?.pending || 0;
-    const approved = stats?.approved || 0;
-    const shipped = stats?.shipped || 0;
-    document.querySelectorAll(".pipeline__step").forEach((el) => {
-      el.classList.remove("is-active", "is-done");
-      const step = el.getAttribute("data-step");
-      if (step === "1") {
-        if (pending > 0) el.classList.add("is-active");
-        else if (approved > 0 || shipped > 0) el.classList.add("is-done");
-      }
-      if (step === "2") {
-        if (approved > 0) el.classList.add("is-active");
-        else if (shipped > 0 && pending === 0) el.classList.add("is-done");
-      }
-      if (step === "3") {
-        if (approved > 0) el.classList.add("is-active");
-        if (approved === 0 && shipped > 0) el.classList.add("is-done");
-      }
-    });
-  }
-
-  function renderTicket(t, mode) {
-    const card = document.createElement("article");
-    card.className = "ticket";
-    const head = document.createElement("div");
-    head.className = "ticket__head";
-    const id = document.createElement("span");
-    id.className = "ticket__id";
-    id.textContent = t.id;
-    head.append(id, statusBadge(t.status));
-
-    const body = document.createElement("div");
-    body.className = "ticket__body";
-    body.textContent = t.body || "";
-
-    const when = document.createElement("div");
-    when.className = "ticket__author";
-    when.textContent = t.createdAt || "";
-
-    const actions = document.createElement("div");
-    actions.className = "row-actions";
-
-    const setStatus = (status, label, primary = false) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = primary ? "btn" : "btn btn--ghost";
-      b.textContent = label;
-      b.addEventListener("click", async () => {
-        try {
-          await api("status", {
-            method: "POST",
-            body: { day: t.day, id: t.id, status },
-          });
-          await refresh(t.day);
-          showMsg(msg, `${STATUS_LABEL[status] || status}.`, true);
-        } catch (err) {
-          showMsg(msg, err.message, false);
-        }
-      });
-      return b;
-    };
-
-    if (mode === "pending") {
-      actions.append(setStatus("approved", "Aprovar", true), setStatus("rejected", "Recusar"));
-    } else if (mode === "approved") {
-      actions.append(setStatus("pending", "Voltar"));
-    } else if (mode === "rejected") {
-      actions.append(setStatus("pending", "Reabrir"));
-    }
-
-    card.append(head, when, body);
-    if (actions.childNodes.length) card.append(actions);
-    return card;
-  }
 
   async function refresh(day) {
     const data = await api("list", { day });
     const stats = data.stats || {};
-    statsEl.textContent = `${stats.pending || 0} novos · ${stats.approved || 0} aprovados · ${stats.shipped || 0} no ar`;
+    const tickets = Array.isArray(data.tickets) ? data.tickets : [];
+
+    statsEl.textContent = `${stats.pending || 0} pra aprovar · ${stats.approved || 0} aprovados · ${stats.shipped || 0} no ar`;
     if (promptEl) promptEl.value = data.prompt || "";
-    paintPipeline(stats);
+
+    const titlePending = document.getElementById("title-pending");
+    const titleApproved = document.getElementById("title-approved");
+    if (titlePending) titlePending.textContent = `Pra aprovar (${stats.pending || 0})`;
+    if (titleApproved) titleApproved.textContent = `Aprovados (${stats.approved || 0})`;
 
     const buckets = { pending: [], approved: [], shipped: [], rejected: [] };
-    for (const t of data.tickets) {
-      const s = t.status || "pending";
-      if (buckets[s]) buckets[s].push(t);
+    for (const t of tickets) {
+      const s = String(t.status || "pending").trim();
+      (buckets[s] || buckets.pending).push(t);
     }
 
-    for (const key of Object.keys(lists)) {
-      const el = lists[key];
-      if (!el) continue;
-      el.innerHTML = "";
-      if (!buckets[key].length) {
-        el.innerHTML = emptyHtml(
-          {
-            pending: "Nada novo por enquanto.",
-            approved: "Nenhum aprovado ainda.",
-            shipped: "Ainda não fechou nenhum no ar.",
-            rejected: "Nenhum recusado.",
-          }[key]
-        );
-        continue;
-      }
-      for (const t of buckets[key]) el.appendChild(renderTicket(t, key));
-    }
+    fillList(
+      document.getElementById("list-pending"),
+      buckets.pending,
+      "pending",
+      "Nenhum pitaco novo neste dia."
+    );
+    fillList(
+      document.getElementById("list-approved"),
+      buckets.approved,
+      "approved",
+      "Nenhum aprovado ainda."
+    );
+    fillList(
+      document.getElementById("list-shipped"),
+      buckets.shipped,
+      "shipped",
+      "Nada no ar ainda."
+    );
+    fillList(
+      document.getElementById("list-rejected"),
+      buckets.rejected,
+      "rejected",
+      "Nenhum recusado."
+    );
 
     const approveAll = document.getElementById("btn-approve-all");
     const shipAll = document.getElementById("btn-ship-all");
@@ -214,6 +214,8 @@ function wireAdmin() {
     if (shipAll) shipAll.disabled = !(stats.approved > 0);
     if (copyBtn) copyBtn.disabled = !(stats.approved > 0);
   }
+
+  window.__amaRefresh = refresh;
 
   async function enterAdmin() {
     loginCard.hidden = true;
@@ -258,7 +260,7 @@ function wireAdmin() {
         body: { day: daySelect.value },
       });
       await refresh(daySelect.value);
-      showMsg(msg, res.changed ? `${res.changed} aprovado(s). Agora copia o pedido.` : "Nada novo.", true);
+      showMsg(msg, res.changed ? `${res.changed} aprovado(s).` : "Nada novo.", true);
     } catch (err) {
       showMsg(msg, err.message, false);
     }
@@ -286,14 +288,14 @@ function wireAdmin() {
     }
     try {
       await navigator.clipboard.writeText(text);
-      showMsg(msg, "Pedido copiado. Cola no Cursor e manda implementar.", true);
+      showMsg(msg, "Pedido copiado. Cola no Cursor.", true);
     } catch {
       if (promptEl) {
         promptEl.hidden = false;
         promptEl.focus();
         promptEl.select();
       }
-      showMsg(msg, "Copia o texto selecionado (Ctrl/Cmd+C).", false);
+      showMsg(msg, "Copia o texto (Ctrl/Cmd+C).", false);
     }
   });
 
