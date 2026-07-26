@@ -173,11 +173,16 @@ function ama_next_id(string $day): string
   return sprintf('t-%s-%03d', $compact, $n);
 }
 
-function ama_create_ticket(string $author, string $title, string $body): array
+function ama_title_from_body(string $body, int $max): string
+{
+  $line = trim(preg_split('/\n/', $body, 2)[0] ?? $body);
+  $line = ama_clean_text($line, $max);
+  return $line !== '' ? $line : 'Sugestão';
+}
+
+function ama_create_ticket(string $body): array
 {
   $cfg = ama_config();
-  $author = ama_clean_text($author, (int) $cfg['max_author']);
-  $title = ama_clean_text($title, (int) $cfg['max_title']);
   $body = trim(str_replace("\0", '', $body));
   $body = preg_replace("/\r\n?/", "\n", $body) ?? $body;
   if (function_exists('mb_substr')) {
@@ -187,12 +192,11 @@ function ama_create_ticket(string $author, string $title, string $body): array
   }
   $body = trim($body);
 
-  if ($title === '' || $body === '') {
-    throw new InvalidArgumentException('Título e sugestão são obrigatórios.');
+  if ($body === '') {
+    throw new InvalidArgumentException('Escreve a sugestão.');
   }
-  if ($author === '') {
-    $author = 'Anônimo';
-  }
+
+  $title = ama_title_from_body($body, (int) $cfg['max_title']);
 
   ama_ensure_data_dirs();
   $day = ama_today();
@@ -207,7 +211,6 @@ function ama_create_ticket(string $author, string $title, string $body): array
     'id' => $id,
     'day' => $day,
     'createdAt' => $now,
-    'author' => $author,
     'title' => $title,
     'body' => $body,
     'status' => 'pending',
@@ -278,10 +281,9 @@ function ama_compile_prompt(string $day, bool $approvedOnly = true): string
   $lines[] = '';
   foreach ($picked as $t) {
     $id = $t['id'] ?? '?';
-    $title = $t['title'] ?? '';
-    $author = $t['author'] ?? 'Anônimo';
+    $title = $t['title'] ?? 'Sugestão';
     $body = trim((string) ($t['body'] ?? ''));
-    $lines[] = "## Ticket {$id} — {$title} (por {$author})";
+    $lines[] = "## Ticket {$id} — {$title}";
     $lines[] = $body;
     $lines[] = '';
   }
