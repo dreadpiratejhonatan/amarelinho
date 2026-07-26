@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Noite no Amarelinho — uma noite no boteco em 3D. Converse com os garçons, sente na calçada e peça uma gelada." />
+  <meta name="theme-color" content="#c9a000" />
+  <title>Amarelinho — Noite no boteco</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/styles/styles.css?v=v02" />
+  <script>
+    window.AMA_BUILD = "v02";
+    console.info("[Amarelinho] build", window.AMA_BUILD);
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/three/build/three.module.js",
+      "three/addons/": "/node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud" class="hud" hidden>
+      <div id="crosshair" class="crosshair" aria-hidden="true"></div>
+      <div id="prompt" class="prompt" hidden></div>
+      <div id="toast" class="toast" hidden></div>
+      <div class="hud__brand">AMARELINHO</div>
+      <div class="hud__hint">WASD mover · mouse olhar · E interagir · Esc soltar mouse</div>
+    </div>
+
+    <div id="dialogue" class="dialogue" hidden>
+      <div class="dialogue__panel">
+        <div class="dialogue__name" id="dlg-name"></div>
+        <div class="dialogue__text" id="dlg-text"></div>
+        <div class="dialogue__choices" id="dlg-choices"></div>
+        <button type="button" class="dialogue__next" id="dlg-next" hidden>Continuar</button>
+      </div>
+    </div>
+
+    <div id="menu" class="menu" aria-hidden="false">
+      <div class="menu__bg" aria-hidden="true"></div>
+      <div class="menu__card">
+        <p class="menu__kicker">Uma noite no boteco</p>
+        <h1 class="menu__title">AMARELINHO</h1>
+        <p class="menu__sub">Chegue na calçada, converse com a galera do bar e peça uma gelada.</p>
+        <button type="button" class="menu__btn" id="btn-play">Entrar no bar</button>
+        <p class="menu__cast">Toninho · Fabin · Seu Oliveira · Val · Ney · Carlinhos</p>
+      </div>
+    </div>
+
+    <div id="click-hint" class="click-hint" hidden>Clique para olhar em volta</div>
+
+    <div id="touch-controls" class="touch" hidden>
+      <div id="touch-look" class="touch__look" aria-hidden="true"></div>
+      <div id="touch-stick" class="touch__stick" aria-label="Mover">
+        <div id="touch-knob" class="touch__knob"></div>
+      </div>
+      <button type="button" id="touch-interact" class="touch__btn" aria-label="Interagir">E</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/main.js?v=v02"></script>
+</body>
+</html>

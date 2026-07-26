@@ -1,0 +1,26 @@
+# CI — build do Amarelinho
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Smoke — artefato HostGator
+        run: |
+          test -f release/hostgator-amarelinho/index.html
+          test -f release/hostgator-amarelinho/game.js
+          test -f release/hostgator-amarelinho/styles/styles.css
+          grep -q 'AMA_BUILD' release/hostgator-amarelinho/index.html

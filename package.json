@@ -1,0 +1,23 @@
+{
+  "name": "amarelinho",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Noite no Amarelinho — boteco 3D no navegador (Three.js)",
+  "scripts": {
+    "setup": "npm install",
+    "start": "serve -l tcp://127.0.0.1:5174",
+    "start:win": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
+    "dev": "npm run start",
+    "build": "node scripts/build.mjs",
+    "preview": "serve dist -l tcp://127.0.0.1:5184",
+    "secrets:ftp": "powershell -ExecutionPolicy Bypass -File scripts/set-ftp-secrets.ps1"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.5",
+    "serve": "^14.2.6"
+  }
+}

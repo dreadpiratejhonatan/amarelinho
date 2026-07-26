@@ -1,0 +1,22 @@
+export const CONFIG = {
+  build: typeof window !== "undefined" ? window.AMA_BUILD || "dev" : "dev",
+  eyeHeight: 1.62,
+  moveSpeed: 3.4,
+  sprintMult: 1.55,
+  mouseSens: 0.0022,
+  interactDist: 2.4,
+  gravity: 18,
+  jumpSpeed: 5.2,
+  playerRadius: 0.28,
+  colors: {
+    yellow: 0xf0c000,
+    yellowDeep: 0xc99600,
+    brick: 0x8b3a2a,
+    wood: 0x5c3a22,
+    woodLight: 0x7a5232,
+    cream: 0xfff6d6,
+    asphalt: 0x3a3a3e,
+    concrete: 0x8a8a8c,
+    nightSky: 0x0b1020,
+  },
+};
