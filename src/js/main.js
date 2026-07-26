@@ -29,7 +29,7 @@ class Game {
     this.renderer.toneMappingExposure = isTouchDevice() ? 1.65 : 1.35;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 80);
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 120);
 
     this.input = new Input(this.canvas);
     this.hud = new HUD();

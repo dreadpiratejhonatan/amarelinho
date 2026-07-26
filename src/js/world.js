@@ -226,27 +226,111 @@ export class World {
     this.group.add(c2);
     addWallCollider(this.colliders, 7.5, 5.0, 0.55, 0.55);
 
-    // Far sidewalk + building silhouettes (less isolated)
+    // Far sidewalk
     const farWalk = meshBox(50, 0.1, 3.5, 0x7a7a7c, { roughness: 0.92 });
     farWalk.position.set(0, 0.02, 18);
     this.group.add(farWalk);
+
+    this._buildCityBackdrop();
+  }
+
+  /** Prédios altos atrás do bar (foto real: branco com arcs + torre de vidro). */
+  _buildCityBackdrop() {
+    // Bloco branco com sacadas/arcos (esquerda-centro, atrás do bar)
+    const whiteX = -4;
+    const whiteZ = -9.5;
+    const whiteW = 14;
+    const whiteH = 22;
+    const white = meshBox(whiteW, whiteH, 3.2, 0xece8e0, { roughness: 0.7 });
+    white.position.set(whiteX, whiteH / 2, whiteZ);
+    this.group.add(white);
+
+    for (let floor = 0; floor < 9; floor++) {
+      for (let col = 0; col < 5; col++) {
+        const wx = whiteX - whiteW * 0.35 + col * (whiteW * 0.175);
+        const wy = 1.8 + floor * 2.3;
+        // Arched balcony recess
+        const arch = meshBox(1.35, 1.7, 0.35, 0xd8d2c8, { roughness: 0.65 });
+        arch.position.set(wx, wy, whiteZ + 1.55);
+        this.group.add(arch);
+        const opening = meshBox(1.0, 1.25, 0.2, 0x1a2230, {
+          emissive: 0x445566,
+          emissiveIntensity: floor % 2 === 0 ? 0.35 : 0.12,
+          roughness: 0.5,
+        });
+        opening.position.set(wx, wy - 0.05, whiteZ + 1.72);
+        this.group.add(opening);
+        // Plant hint
+        if ((floor + col) % 3 === 0) {
+          const plant = meshBox(0.55, 0.35, 0.25, 0x2d6a28);
+          plant.position.set(wx, wy - 0.7, whiteZ + 1.85);
+          this.group.add(plant);
+        }
+      }
+    }
+
+    // Torre de vidro à direita
+    const glassX = 10;
+    const glassZ = -10;
+    const glassW = 6.5;
+    const glassH = 28;
+    const glass = meshBox(glassW, glassH, 4.0, 0x6a7a8a, {
+      roughness: 0.25,
+      metalness: 0.45,
+      emissive: 0x223344,
+      emissiveIntensity: 0.15,
+    });
+    glass.position.set(glassX, glassH / 2, glassZ);
+    this.group.add(glass);
+    for (let floor = 0; floor < 14; floor++) {
+      const band = meshBox(glassW + 0.05, 0.08, 4.05, 0xdde8f0, {
+        roughness: 0.3,
+        metalness: 0.5,
+      });
+      band.position.set(glassX, 1.2 + floor * 1.9, glassZ);
+      this.group.add(band);
+      const win = meshBox(glassW - 0.4, 1.4, 0.08, 0x88aacc, {
+        emissive: 0x6688aa,
+        emissiveIntensity: 0.25,
+        roughness: 0.2,
+        metalness: 0.4,
+      });
+      win.position.set(glassX, 1.9 + floor * 1.9, glassZ + 2.05);
+      this.group.add(win);
+    }
+
+    // Prédio auxiliar à esquerda
+    const left = meshBox(8, 16, 2.8, 0xd4cfc6, { roughness: 0.75 });
+    left.position.set(-16, 8, -8.5);
+    this.group.add(left);
+    for (let floor = 0; floor < 6; floor++) {
+      for (let col = 0; col < 3; col++) {
+        const w = meshBox(1.2, 1.1, 0.1, 0x223040, {
+          emissive: 0x556677,
+          emissiveIntensity: 0.2,
+        });
+        w.position.set(-18.2 + col * 2.2, 2 + floor * 2.4, -7.05);
+        this.group.add(w);
+      }
+    }
+
+    // Prédios do outro lado da rua (fundo)
     for (const [x, w, h, col] of [
-      [-14, 6, 8, 0x3a4050],
-      [-6, 5, 11, 0x4a4558],
-      [2, 7, 9, 0x353a48],
-      [12, 6, 12, 0x2e3444],
+      [-18, 7, 14, 0x3a4250],
+      [-8, 6, 18, 0x4a5060],
+      [4, 8, 12, 0x353c48],
+      [16, 7, 20, 0x2e3644],
     ]) {
-      const b = meshBox(w, h, 2.2, col, { roughness: 0.8 });
-      b.position.set(x, h / 2, 20.5);
+      const b = meshBox(w, h, 2.4, col, { roughness: 0.8 });
+      b.position.set(x, h / 2, 21);
       this.group.add(b);
-      // Window lights
-      for (let row = 0; row < 3; row++) {
-        for (let colI = 0; colI < 2; colI++) {
-          const win = meshBox(0.5, 0.6, 0.05, 0xffe8a0, {
+      for (let row = 0; row < 4; row++) {
+        for (let c = 0; c < 2; c++) {
+          const win = meshBox(0.55, 0.7, 0.06, 0xffe8a0, {
             emissive: 0xffcc66,
-            emissiveIntensity: 0.55,
+            emissiveIntensity: 0.5,
           });
-          win.position.set(x - w * 0.25 + colI * w * 0.4, 2 + row * 2.2, 19.35);
+          win.position.set(x - w * 0.22 + c * w * 0.4, 2.2 + row * 2.5, 19.75);
           this.group.add(win);
         }
       }
@@ -331,26 +415,48 @@ export class World {
       this.group.add(beam);
     }
 
-    // AMARELINHO facade sign
-    const signBoard = meshBox(3.4, 0.6, 0.1, 0x222018, {
-      emissive: 0xffcc33,
-      emissiveIntensity: 0.85,
+    // Parapeito amarelo + fachada preta grande (foto real)
+    const parapet = meshBox(W + 0.4, 0.55, 0.55, Y, { roughness: 0.55 });
+    parapet.position.set(0, 3.95, 1.15);
+    this.group.add(parapet);
+
+    const blackBoard = meshBox(W + 0.6, 1.35, 0.22, 0x0a0a0a, {
+      roughness: 0.65,
+      metalness: 0.05,
     });
-    signBoard.position.set(0, 3.35, 1.35);
-    this.group.add(signBoard);
-    const signTex = makeLabelTexture("AMARELINHO", {
-      w: 640,
-      h: 128,
-      color: "#1a1000",
-      bg: "#ffd84a",
-      font: "bold 72px Bebas Neue, Arial Black, sans-serif",
+    blackBoard.position.set(0, 4.75, 1.2);
+    this.group.add(blackBoard);
+
+    const signTex = makeLabelTexture("AMARELINHO DAS BATIDAS", {
+      w: 1400,
+      h: 220,
+      color: "#ffffff",
+      bg: "#0a0a0a",
+      font: "bold 92px Bebas Neue, Arial Black, sans-serif",
     });
     const signPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.1, 0.48),
+      new THREE.PlaneGeometry(W + 0.2, 1.15),
       new THREE.MeshBasicMaterial({ map: signTex })
     );
-    signPlane.position.set(0, 3.35, 1.42);
+    signPlane.position.set(0, 4.75, 1.34);
     this.group.add(signPlane);
+
+    // Telhado de telha atrás da fachada
+    const roof = meshBox(W + 1.2, 0.18, 1.8, 0x6b2e1f, { roughness: 0.85 });
+    roof.position.set(0, 5.55, 0.4);
+    roof.rotation.x = -0.18;
+    this.group.add(roof);
+    for (let i = 0; i < 8; i++) {
+      const ridge = meshBox(W + 1.0, 0.04, 0.12, 0x5a2818);
+      ridge.position.set(0, 5.48 + i * 0.02, 0.9 - i * 0.18);
+      ridge.rotation.x = -0.18;
+      this.group.add(ridge);
+    }
+
+    // Luz na placa
+    const signLight = new THREE.PointLight(0xffffff, 1.8, 12, 1.5);
+    signLight.position.set(0, 5.2, 3.2);
+    this.scene.add(signLight);
   }
 
   _awning() {
