@@ -294,6 +294,23 @@ a { color: #ffd84a; }
 
 .ticket-list { margin-top: 8px; }
 
+.ticket-list--hero .ticket--novo {
+  margin-top: 14px;
+  padding: 16px 16px 14px;
+  border-width: 2px;
+  border-color: rgba(255, 216, 74, 0.55);
+  background: rgba(255, 216, 74, 0.08);
+}
+
+.ticket-list--hero .ticket__body {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #fff6d6;
+}
+
 .meta--stats {
   margin-top: 10px;
   font-weight: 600;
