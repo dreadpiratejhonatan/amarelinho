@@ -87,6 +87,10 @@ html, body {
   white-space: nowrap;
 }
 
+.prompt[hidden] {
+  display: none !important;
+}
+
 .toast {
   position: absolute;
   left: 50%;
@@ -101,6 +105,10 @@ html, body {
   text-align: center;
 }
 
+.toast[hidden] {
+  display: none !important;
+}
+
 .dialogue {
   position: fixed;
   inset: 0;
@@ -111,6 +119,10 @@ html, body {
   padding: 24px;
   background: linear-gradient(to top, rgba(8, 5, 0, 0.72), transparent 55%);
   pointer-events: auto;
+}
+
+.dialogue[hidden] {
+  display: none !important;
 }
 
 .dialogue__panel {
