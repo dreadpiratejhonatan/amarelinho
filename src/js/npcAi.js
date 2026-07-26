@@ -1,21 +1,29 @@
 import * as THREE from "three";
+import { floorHeightAt } from "./layout.js";
 
-/** Waypoints de circulação no bar / calçada / rua. */
+/** Waypoints alinhados à planta (lavanda / verde / amarelo / azul / cozinha). */
 export const NPC_WAYPOINTS = {
-  interior: [
-    [-5.5, -1.5], [-3, -2.2], [-1, -1.8], [1.2, -2.4], [3.2, -1.6],
-    [-4, 0.2], [-1.5, 0.4], [0.8, 0.2], [2.8, -0.4], [5.0, -0.8],
-    [-2.5, -0.8], [0, -0.5],
-    [-4, -4.5], [-1, -5.0], [1.5, -4.8], [-3, -7.0], [0.5, -7.5],
-    [-2, -9.5], [1, -9.0], [-1.5, -11.5], [0.5, -11.0],
-    [5.5, -8.5], [6.5, -10.5], [-6.5, -9.0], [-6.0, -11.5],
-  ],
   sidewalk: [
-    [-7, 2.2], [-4, 2.5], [-1.5, 3.0], [1.5, 2.8], [4, 3.0], [6.5, 2.4],
-    [-6, 4.2], [-2, 4.5], [2, 4.8], [5.5, 4.2], [-4.5, 5.5], [0.5, 5.2], [4, 5.6],
+    [-10, 3.5], [-5, 4], [-1, 3.8], [3, 4.2], [7, 3.6],
+    [-8, 5.5], [0, 5.8], [5, 5.5],
+  ],
+  green: [
+    [-11.5, -1], [-9, -2], [-6.5, -1.5], [-11, -4], [-8, -4.5], [-6.5, -3.5],
+    [-10, 0], [-7.5, 0.3],
+  ],
+  interior: [
+    [-1, 0], [0.5, -2], [-1, -4], [0.8, -5],
+    [-11, -8.5], [-8, -9], [-5, -8.5], [-2, -9.5],
+    [-10, -11.5], [-6, -12], [-3, -11], [-9, -13.5], [-5, -13.8],
+  ],
+  blue: [
+    [4, -1], [6, -2.5], [8, -1.5], [10, -3], [5, -4.5], [9, -5],
+  ],
+  kitchen: [
+    [5, -8.5], [7, -9], [9, -8.8], [6, -10.5], [8.5, -10], [10, -9.5],
   ],
   street: [
-    [-6, 8.5], [-2, 9.0], [2, 8.8], [5, 9.2], [-4, 11], [0, 10.5], [3.5, 11.2],
+    [-6, 8.5], [-2, 9.0], [2, 8.8], [5, 9.2], [-4, 11], [0, 10.5],
   ],
 };
 
@@ -24,18 +32,10 @@ function pick(arr) {
 }
 
 function dist2(ax, az, bx, bz) {
-  const dx = ax - bx;
-  const dz = az - bz;
-  return Math.hypot(dx, dz);
+  return Math.hypot(ax - bx, az - bz);
 }
 
-/**
- * Agente com vida própria: anda entre pontos, para pra conversar com outro NPC.
- */
 export class NpcAgent {
-  /**
-   * @param {{ mesh: THREE.Object3D, kind: 'waiter'|'customer', zones: string[], speed?: number, interactable?: object|null }} opts
-   */
   constructor(opts) {
     this.mesh = opts.mesh;
     this.kind = opts.kind;
@@ -62,14 +62,19 @@ export class NpcAgent {
     if (b) b.visible = !!on;
   }
 
+  _floorBob(extra = 0) {
+    const fy = floorHeightAt(this.x, this.z);
+    this.mesh.position.y = fy + extra;
+  }
+
   _pickWaypoint(agents) {
     const zone = pick(this.zones);
-    const list = NPC_WAYPOINTS[zone] || NPC_WAYPOINTS.sidewalk;
+    const list = NPC_WAYPOINTS[zone] || NPC_WAYPOINTS.interior;
     let best = null;
     for (let i = 0; i < 6; i++) {
       const [x, z] = pick(list);
-      const jitterX = x + (Math.random() - 0.5) * 0.8;
-      const jitterZ = z + (Math.random() - 0.5) * 0.6;
+      const jitterX = x + (Math.random() - 0.5) * 0.7;
+      const jitterZ = z + (Math.random() - 0.5) * 0.5;
       let crowded = false;
       for (const a of agents) {
         if (a === this) continue;
@@ -126,7 +131,7 @@ export class NpcAgent {
 
     if (this.state === "chat") {
       if (this.partner) this._faceToward(this.partner.x, this.partner.z, dt);
-      this.mesh.position.y = Math.sin(performance.now() * 0.004 + this._phase) * 0.012;
+      this._floorBob(Math.sin(performance.now() * 0.004 + this._phase) * 0.012);
       if (this.timer <= 0) {
         const p = this.partner;
         this._endChat();
@@ -137,9 +142,8 @@ export class NpcAgent {
     }
 
     if (this.state === "idle") {
-      this.mesh.position.y = Math.sin(performance.now() * 0.0025 + this._phase) * 0.015;
+      this._floorBob(Math.sin(performance.now() * 0.0025 + this._phase) * 0.015);
       if (this.timer <= 0) {
-        // Chance de puxar papo com alguém perto
         if (this._cooldown <= 0 && Math.random() < 0.45) {
           let nearest = null;
           let nearestD = 1.55;
@@ -166,7 +170,6 @@ export class NpcAgent {
       return;
     }
 
-    // walk
     if (!this.target) {
       this.state = "idle";
       this.timer = 0.5 + Math.random() * 1.5;
@@ -181,7 +184,7 @@ export class NpcAgent {
       this.state = "idle";
       this.timer = 0.8 + Math.random() * 2.2;
       this.target = null;
-      this.mesh.position.y = 0;
+      this._floorBob(0);
       this._syncInteractable();
       return;
     }
@@ -191,7 +194,6 @@ export class NpcAgent {
     const nz = this.z + (dz / d) * step;
     const pos = new THREE.Vector3(nx, 0, nz);
     world.resolveCollision(pos, 0.32);
-    // Separação leve entre NPCs
     for (const a of agents) {
       if (a === this) continue;
       const sep = dist2(pos.x, pos.z, a.x, a.z);
@@ -203,10 +205,9 @@ export class NpcAgent {
     }
     this.mesh.position.x = pos.x;
     this.mesh.position.z = pos.z;
-    this.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.012 + this._phase)) * 0.04;
+    this._floorBob(Math.abs(Math.sin(performance.now() * 0.012 + this._phase)) * 0.04);
     this._faceToward(this.target.x, this.target.z, dt);
 
-    // Encontrou alguém no caminho → papo
     if (this._cooldown <= 0 && Math.random() < 0.012) {
       for (const a of agents) {
         if (a === this || a.state === "chat" || a._cooldown > 0) continue;
@@ -224,6 +225,6 @@ export class NpcAgent {
     if (!this.interactable) return;
     this.interactable.position.x = this.mesh.position.x;
     this.interactable.position.z = this.mesh.position.z;
-    this.interactable.position.y = 1.4;
+    this.interactable.position.y = this.mesh.position.y + 1.4;
   }
 }

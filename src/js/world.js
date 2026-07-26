@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { WAITERS, buildWaiterMesh, randomCustomerDef, buildCustomerMesh } from "./npcs.js";
 import { NpcAgent } from "./npcAi.js";
-import { createFootballTv } from "./footballTv.js";
+import { LAYOUT, floorHeightAt } from "./layout.js";
+import { buildBarFromPlan, placePlanTables } from "./barZones.js";
 
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
@@ -244,16 +245,16 @@ export class World {
   _build() {
     this._lights();
     this._street();
-    this._buildingShell();
     this._awning();
-    this._interiorSalon();
-    this._counterKitchen();
-    this._bathroom();
+    buildBarFromPlan(this);
     this._furniture();
-    this._footballTvs();
     this._streetProps();
     this._spawnWaiters();
     this._spawnCustomers();
+  }
+
+  getFloorHeight(x, z) {
+    return floorHeightAt(x, z);
   }
 
   _lights() {
@@ -341,12 +342,12 @@ export class World {
     street.position.set(0, -0.04, 12);
     this.group.add(street);
 
-    // Wide sidewalk in front of the bar
-    const sidewalk = meshBox(28, 0.12, 7.5, 0x9a9a9c, { roughness: 0.9 });
+    // Wide sidewalk in front of the bar (lavanda)
+    const sidewalk = meshBox(32, 0.12, 7.5, 0x9a9a9c, { roughness: 0.9 });
     sidewalk.position.set(0, 0.04, 3.6);
     this.group.add(sidewalk);
 
-    const curb = meshBox(28, 0.2, 0.3, 0x6a6a6c);
+    const curb = meshBox(32, 0.2, 0.3, 0x6a6a6c);
     curb.position.set(0, 0.1, 7.2);
     this.group.add(curb);
 
@@ -357,14 +358,12 @@ export class World {
       this.group.add(stripe);
     }
 
-    // Árvores voxel (folhas furadas estilo Minecraft)
-    const treeL = buildMinecraftTree(-7.2, 4.5, "flower", 1.15);
-    this.group.add(treeL);
-    addWallCollider(this.colliders, -7.2, 4.5, 0.7, 0.7);
-
-    const treeR = buildMinecraftTree(7.5, 5.0, "green", 1.0);
-    this.group.add(treeR);
-    addWallCollider(this.colliders, 7.5, 5.0, 0.55, 0.55);
+    // Árvores na calçada (lavanda) — posições da planta
+    for (const [tx, tz] of LAYOUT.trees) {
+      const tree = buildMinecraftTree(tx, tz, tz > 4.7 ? "green" : "flower", 1.1);
+      this.group.add(tree);
+      addWallCollider(this.colliders, tx, tz, 0.65, 0.65);
+    }
 
     // Far sidewalk
     const farWalk = meshBox(50, 0.1, 3.5, 0x7a7a7c, { roughness: 0.92 });
@@ -378,7 +377,7 @@ export class World {
   _buildCityBackdrop() {
     // Bloco branco com sacadas/arcos (esquerda-centro, atrás do bar)
     const whiteX = -4;
-    const whiteZ = -17.5;
+    const whiteZ = -19.5;
     const whiteW = 14;
     const whiteH = 22;
     const white = meshBox(whiteW, whiteH, 3.2, 0xece8e0, { roughness: 0.7 });
@@ -410,8 +409,8 @@ export class World {
     }
 
     // Torre de vidro à direita
-    const glassX = 10;
-    const glassZ = -18;
+    const glassX = 12;
+    const glassZ = -20;
     const glassW = 6.5;
     const glassH = 28;
     const glass = meshBox(glassW, glassH, 4.0, 0x6a7a8a, {
@@ -477,511 +476,7 @@ export class World {
     }
   }
 
-  _buildingShell() {
-    const C = CONFIG.colors;
-    const Y = 0xffd400;
-    const W = 18;
-    // Salão profundo: fachada ~z=1 → fundo ~z=-14
-    const backZ = -14.0;
-    const sideZ = -6.4;
-    const depth = 15.4;
-
-    // Back wall
-    const back = meshBox(W, 3.8, 0.28, Y, { roughness: 0.55 });
-    back.position.set(0, 1.9, backZ);
-    this.group.add(back);
-    addWallCollider(this.colliders, 0, backZ, W, 0.45);
-
-    const brickBack = meshBox(W, 1.1, 0.32, C.brick, { roughness: 0.88 });
-    brickBack.position.set(0, 0.55, backZ + 0.05);
-    this.group.add(brickBack);
-
-    // Side walls
-    const left = meshBox(0.28, 3.8, depth, Y, { roughness: 0.55 });
-    left.position.set(-W / 2, 1.9, sideZ);
-    this.group.add(left);
-    addWallCollider(this.colliders, -W / 2, sideZ, 0.45, depth);
-    const leftBrick = meshBox(0.32, 1.1, depth, C.brick, { roughness: 0.88 });
-    leftBrick.position.set(-W / 2, 0.55, sideZ);
-    this.group.add(leftBrick);
-
-    const whiteWing = meshBox(0.35, 3.8, 4.0, 0xf0f0f0, { roughness: 0.7 });
-    whiteWing.position.set(-W / 2 - 0.5, 1.9, 0.6);
-    this.group.add(whiteWing);
-
-    const right = meshBox(0.28, 3.8, depth, Y, { roughness: 0.55 });
-    right.position.set(W / 2, 1.9, sideZ);
-    this.group.add(right);
-    addWallCollider(this.colliders, W / 2, sideZ, 0.45, depth);
-    const rightBrick = meshBox(0.32, 1.1, depth, C.brick, { roughness: 0.88 });
-    rightBrick.position.set(W / 2, 0.55, sideZ);
-    this.group.add(rightBrick);
-
-    const blue = meshBox(1.4, 4.0, 5.0, 0x1e5a9a, { roughness: 0.7 });
-    blue.position.set(W / 2 + 1.2, 2.0, -0.8);
-    this.group.add(blue);
-
-    // Front pillars (open facade)
-    const pillarXs = [-7.5, -4.5, -1.5, 1.5, 4.5, 7.5];
-    for (const x of pillarXs) {
-      const brick = meshBox(0.55, 1.15, 0.55, C.brick, { roughness: 0.88 });
-      brick.position.set(x, 0.58, 1.0);
-      this.group.add(brick);
-      const top = meshBox(0.5, 2.5, 0.5, Y);
-      top.position.set(x, 2.35, 1.0);
-      this.group.add(top);
-      addWallCollider(this.colliders, x, 1.0, 0.6, 0.6);
-
-      if (x === 1.5) {
-        const ext = meshBox(0.12, 0.36, 0.1, 0xcc2020);
-        ext.position.set(x + 0.32, 1.45, 1.0);
-        this.group.add(ext);
-      }
-    }
-
-    // Floor + ceiling (salão inteiro)
-    const floor = meshBox(W - 0.4, 0.08, depth - 0.5, 0xd0c0a0, { roughness: 0.7 });
-    floor.position.set(0, 0.04, sideZ);
-    this.group.add(floor);
-
-    const ceil = meshBox(W, 0.14, depth + 0.4, 0xfff8e8, {
-      emissive: 0xffe08a,
-      emissiveIntensity: 0.35,
-      roughness: 0.55,
-    });
-    ceil.position.set(0, 3.65, sideZ);
-    this.group.add(ceil);
-
-    for (const z of [-12.5, -10.5, -8.5, -6.5, -4.5, -2.5, -0.6, 0.8]) {
-      const beam = meshBox(W - 0.4, 0.08, 0.12, 0x1a1a1a);
-      beam.position.set(0, 3.55, z);
-      this.group.add(beam);
-    }
-
-    // Parapeito + fachada preta
-    const parapet = meshBox(W + 0.4, 0.55, 0.55, Y, { roughness: 0.55 });
-    parapet.position.set(0, 3.95, 1.15);
-    this.group.add(parapet);
-
-    const blackBoard = meshBox(W + 0.6, 1.35, 0.22, 0x0a0a0a, {
-      roughness: 0.65,
-      metalness: 0.05,
-    });
-    blackBoard.position.set(0, 4.75, 1.2);
-    this.group.add(blackBoard);
-
-    const signTex = makeLabelTexture("AMARELINHO DAS BATIDAS", {
-      w: 1400,
-      h: 220,
-      color: "#ffffff",
-      bg: "#0a0a0a",
-      font: "bold 92px Bebas Neue, Arial Black, sans-serif",
-    });
-    const signPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(W + 0.2, 1.15),
-      new THREE.MeshBasicMaterial({ map: signTex })
-    );
-    signPlane.position.set(0, 4.75, 1.34);
-    this.group.add(signPlane);
-
-    const roof = meshBox(W + 1.2, 0.18, 1.8, 0x6b2e1f, { roughness: 0.85 });
-    roof.position.set(0, 5.55, 0.4);
-    roof.rotation.x = -0.18;
-    this.group.add(roof);
-    for (let i = 0; i < 8; i++) {
-      const ridge = meshBox(W + 1.0, 0.04, 0.12, 0x5a2818);
-      ridge.position.set(0, 5.48 + i * 0.02, 0.9 - i * 0.18);
-      ridge.rotation.x = -0.18;
-      this.group.add(ridge);
-    }
-
-    const signLight = new THREE.PointLight(0xffffff, 1.8, 12, 1.5);
-    signLight.position.set(0, 5.2, 3.2);
-    this.scene.add(signLight);
-  }
-
-  _awning() {
-    const cloth = meshBox(18.5, 0.1, 5.8, 0xe8b000, {
-      roughness: 0.9,
-      emissive: 0x886600,
-      emissiveIntensity: 0.22,
-    });
-    cloth.position.set(0, 3.25, 2.4);
-    cloth.rotation.x = -0.05;
-    this.group.add(cloth);
-
-    for (const x of [-8, -4, 0, 4, 8]) {
-      const arm = meshBox(0.07, 0.07, 5.2, 0x333333, { metalness: 0.45, roughness: 0.4 });
-      arm.position.set(x, 3.12, 2.2);
-      this.group.add(arm);
-      const pole = meshCyl(0.045, 0.045, 3.1, 0x2a2a2a, { metalness: 0.5, roughness: 0.4 });
-      pole.position.set(x, 1.55, 4.8);
-      this.group.add(pole);
-    }
-
-    const val = meshBox(18.5, 0.4, 0.1, 0xffd400, {
-      roughness: 0.8,
-      emissive: 0xaa8800,
-      emissiveIntensity: 0.2,
-    });
-    val.position.set(0, 2.95, 5.2);
-    this.group.add(val);
-
-    const barrel = meshCyl(0.32, 0.32, 0.85, 0xffd400);
-    barrel.position.set(6.2, 0.45, 5.5);
-    this.group.add(barrel);
-    for (let i = 0; i < 4; i++) {
-      const stripe = meshCyl(0.325, 0.325, 0.1, 0xf8f8f8);
-      stripe.position.set(6.2, 0.2 + i * 0.22, 5.5);
-      this.group.add(stripe);
-    }
-  }
-
-  _interiorSalon() {
-    const Y = 0xffd400;
-
-    // Pilares internos (espaçados no salão longo)
-    for (const [x, z] of [
-      [-4.5, -2.4],
-      [2.2, -2.4],
-      [-4.5, -6.5],
-      [2.2, -6.5],
-      [-4.5, -10.5],
-      [1.5, -10.5],
-    ]) {
-      const p = meshBox(0.5, 3.4, 0.5, Y);
-      p.position.set(x, 1.7, z);
-      this.group.add(p);
-      addWallCollider(this.colliders, x, z, 0.55, 0.55);
-    }
-
-    // Meia-parede / divisória salão
-    for (const [x, z, w, d] of [
-      [-2.2, -3.0, 3.2, 0.2],
-      [3.2, -1.2, 0.2, 2.8],
-    ]) {
-      const wall = meshBox(w, 1.05, d, Y);
-      wall.position.set(x, 0.55, z);
-      this.group.add(wall);
-      const ledge = meshBox(w + 0.08, 0.06, d + 0.08, 0x3a2818);
-      ledge.position.set(x, 1.1, z);
-      this.group.add(ledge);
-      addWallCollider(this.colliders, x, z, Math.max(w, 0.35), Math.max(d, 0.35));
-    }
-
-    const flagMat = new THREE.MeshStandardMaterial({
-      map: makeFlagTexture(),
-      roughness: 0.7,
-      metalness: 0.05,
-    });
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), flagMat);
-    flag.position.set(-1.5, 2.55, -13.85);
-    this.group.add(flag);
-
-    const fan = meshCyl(0.32, 0.32, 0.08, 0x1a1a1a);
-    fan.rotation.x = Math.PI / 2;
-    fan.position.set(3.0, 2.85, -13.85);
-    this.group.add(fan);
-
-    const clock = meshCyl(0.18, 0.18, 0.05, 0xf0f0f0);
-    clock.rotation.x = Math.PI / 2;
-    clock.position.set(6.5, 3.0, -13.85);
-    this.group.add(clock);
-
-    const saidaTex = makeLabelTexture("SAÍDA", {
-      w: 256,
-      h: 64,
-      color: "#ffffff",
-      bg: "#1a7a3a",
-      font: "bold 40px DM Sans, Arial, sans-serif",
-    });
-    const saida = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.7, 0.2),
-      new THREE.MeshBasicMaterial({ map: saidaTex })
-    );
-    saida.position.set(8.5, 3.0, -3.2);
-    saida.rotation.y = -Math.PI / 2;
-    this.group.add(saida);
-
-    // Luminárias pelo salão fundo
-    for (const [x, z] of [
-      [-4, -2.5],
-      [0, -2.0],
-      [4, -2.2],
-      [-2, -5.5],
-      [2, -5.8],
-      [-3, -9.0],
-      [1, -9.2],
-      [4, -8.5],
-      [-1, -12.0],
-    ]) {
-      for (let i = 0; i < 3; i++) {
-        const shade = meshBox(0.24, 0.1, 0.24, 0xfff4d0, {
-          emissive: 0xffe8a0,
-          emissiveIntensity: 0.85,
-        });
-        shade.position.set(x + i * 0.3 - 0.3, 3.45, z);
-        this.group.add(shade);
-      }
-    }
-  }
-
-  _counterKitchen() {
-    const C = CONFIG.colors;
-
-    // Balcão (frente-direita — pedido do jogador)
-    const counter = meshBox(3.4, 1.05, 1.0, C.wood);
-    counter.position.set(5.2, 0.55, -2.0);
-    this.group.add(counter);
-    addWallCollider(this.colliders, 5.2, -2.0, 3.5, 1.1);
-
-    const top = meshBox(3.45, 0.08, 1.05, 0x2a2a2e, { roughness: 0.35, metalness: 0.15 });
-    top.position.set(5.2, 1.12, -2.0);
-    this.group.add(top);
-
-    const diamond = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.48, 0),
-      mat(0xffd84a, { emissive: 0xaa8800, emissiveIntensity: 0.35, roughness: 0.4 })
-    );
-    diamond.rotation.z = Math.PI / 4;
-    diamond.position.set(5.2, 0.82, -1.48);
-    diamond.scale.set(1, 0.14, 1);
-    this.group.add(diamond);
-
-    const freezer = meshBox(0.85, 0.95, 0.7, 0xc42020, { roughness: 0.55 });
-    freezer.position.set(2.8, 0.5, -3.4);
-    this.group.add(freezer);
-    addWallCollider(this.colliders, 2.8, -3.4, 0.95, 0.8);
-    const freezerLid = meshBox(0.88, 0.06, 0.72, 0xe8e8e8);
-    freezerLid.position.set(2.8, 1.0, -3.4);
-    this.group.add(freezerLid);
-
-    const warmer = meshBox(0.9, 0.55, 0.55, 0xddeeff, { roughness: 0.25, metalness: 0.2 });
-    warmer.position.set(4.2, 1.45, -2.0);
-    this.group.add(warmer);
-
-    // ——— Cozinha fundo-direita ———
-    // Divisória com vão de entrada (~z=-8.5)
-    const kitWallBack = meshBox(0.2, 2.6, 4.2, 0xe8d8a8);
-    kitWallBack.position.set(3.6, 1.3, -11.8);
-    this.group.add(kitWallBack);
-    addWallCollider(this.colliders, 3.6, -11.8, 0.35, 4.3);
-
-    const kitWallFront = meshBox(0.2, 2.6, 1.4, 0xe8d8a8);
-    kitWallFront.position.set(3.6, 1.3, -7.6);
-    this.group.add(kitWallFront);
-    addWallCollider(this.colliders, 3.6, -7.6, 0.35, 1.5);
-    const bench = meshBox(4.2, 0.9, 0.85, 0x4a4a50, { metalness: 0.45, roughness: 0.4 });
-    bench.position.set(6.4, 0.5, -11.5);
-    this.group.add(bench);
-    addWallCollider(this.colliders, 6.4, -11.5, 4.3, 0.95);
-
-    const chapa = meshBox(1.6, 0.08, 0.7, 0x2a2a2e, { metalness: 0.7, roughness: 0.35 });
-    chapa.position.set(5.2, 0.98, -11.5);
-    this.group.add(chapa);
-    const chapaGlow = meshBox(1.4, 0.02, 0.55, 0xff6622, {
-      emissive: 0xff4400,
-      emissiveIntensity: 0.75,
-    });
-    chapaGlow.position.set(5.2, 1.02, -11.5);
-    this.group.add(chapaGlow);
-    // Espátula / óleo
-    const spatula = meshBox(0.08, 0.02, 0.35, 0xc0c0c0, { metalness: 0.8, roughness: 0.3 });
-    spatula.position.set(5.9, 1.05, -11.35);
-    this.group.add(spatula);
-
-    // Fogão
-    const stove = meshBox(1.1, 0.95, 0.75, 0x1a1a1e, { metalness: 0.4, roughness: 0.45 });
-    stove.position.set(7.4, 0.5, -11.5);
-    this.group.add(stove);
-    for (const [ox, oz] of [
-      [-0.22, -0.15],
-      [0.22, -0.15],
-      [-0.22, 0.15],
-      [0.22, 0.15],
-    ]) {
-      const burner = meshCyl(0.12, 0.12, 0.04, 0x333338, { metalness: 0.5, roughness: 0.4 });
-      burner.position.set(7.4 + ox, 1.0, -11.5 + oz);
-      this.group.add(burner);
-      const flame = meshCyl(0.06, 0.02, 0.08, 0xff6622, {
-        emissive: 0xff4400,
-        emissiveIntensity: 1.1,
-      });
-      flame.position.set(7.4 + ox, 1.08, -11.5 + oz);
-      this.group.add(flame);
-    }
-    const knobs = meshBox(0.9, 0.12, 0.08, 0x888890);
-    knobs.position.set(7.4, 0.55, -11.1);
-    this.group.add(knobs);
-
-    // Coifa
-    const hood = meshBox(2.4, 0.12, 1.1, 0xc0c4c8, { metalness: 0.7, roughness: 0.35 });
-    hood.position.set(6.4, 2.75, -11.5);
-    this.group.add(hood);
-    const hoodCone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.45, 0.5, 4),
-      mat(0xb8bcc0, { metalness: 0.7, roughness: 0.35 })
-    );
-    hoodCone.position.set(6.4, 3.05, -11.5);
-    hoodCone.rotation.y = Math.PI / 4;
-    this.group.add(hoodCone);
-
-    // Forno / brasa
-    const oven = meshBox(0.9, 0.85, 0.5, 0x1a1a1a);
-    oven.position.set(7.5, 0.7, -13.0);
-    this.group.add(oven);
-    addWallCollider(this.colliders, 7.5, -13.0, 1.0, 0.6);
-    const glow = meshBox(0.7, 0.55, 0.05, 0xff6622, {
-      emissive: 0xff4400,
-      emissiveIntensity: 0.9,
-    });
-    glow.position.set(7.5, 0.7, -12.72);
-    this.group.add(glow);
-
-    // Prateleiras + bebidas no fundo da cozinha
-    const shelfBack = meshBox(3.6, 2.3, 0.22, C.woodLight);
-    shelfBack.position.set(6.2, 2.25, -13.7);
-    this.group.add(shelfBack);
-    for (let row = 0; row < 3; row++) {
-      for (let i = 0; i < 12; i++) {
-        const bottle = meshCyl(
-          0.045,
-          0.055,
-          0.26 + (i % 3) * 0.05,
-          [0x224422, 0x553311, 0x222266, 0xccaa66, 0xaaaaee][i % 5]
-        );
-        bottle.position.set(4.6 + i * 0.24, 1.35 + row * 0.55, -13.55);
-        this.group.add(bottle);
-      }
-    }
-    const pineapple = meshCyl(0.12, 0.14, 0.28, 0xd4a017);
-    pineapple.position.set(5.0, 3.05, -13.5);
-    this.group.add(pineapple);
-    const crown = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.2, 8), mat(0x2d6a28));
-    crown.position.set(5.0, 3.3, -13.5);
-    this.group.add(crown);
-
-    for (let i = 0; i < 10; i++) {
-      const g = meshCyl(0.045, 0.035, 0.11, 0xddeeff, { roughness: 0.2, metalness: 0.1 });
-      g.position.set(5.5 + i * 0.22, 3.0, -13.5);
-      this.group.add(g);
-    }
-
-    // Placa COZINHA
-    const kitTex = makeLabelTexture("COZINHA", {
-      w: 320,
-      h: 80,
-      color: "#1a1408",
-      bg: "#ffd84a",
-      font: "bold 42px Bebas Neue, Arial Black, sans-serif",
-    });
-    const kitSign = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.0, 0.28),
-      new THREE.MeshBasicMaterial({ map: kitTex })
-    );
-    kitSign.position.set(3.72, 2.6, -8.2);
-    kitSign.rotation.y = Math.PI / 2;
-    this.group.add(kitSign);
-
-    this.interactables.push({
-      kind: "counter",
-      label: "Pedir no balcão",
-      position: new THREE.Vector3(4.6, 1.1, -1.1),
-      radius: 1.8,
-    });
-  }
-
-  _bathroom() {
-    // Banheiro canto esquerdo fundo
-    const wallColor = 0xe8e0d0;
-    // Parede frontal do banheiro (com vão de porta em x≈-6.2)
-    const frontL = meshBox(2.2, 2.8, 0.18, wallColor);
-    frontL.position.set(-7.6, 1.4, -10.2);
-    this.group.add(frontL);
-    addWallCollider(this.colliders, -7.6, -10.2, 2.3, 0.3);
-    const frontR = meshBox(1.4, 2.8, 0.18, wallColor);
-    frontR.position.set(-4.7, 1.4, -10.2);
-    this.group.add(frontR);
-    addWallCollider(this.colliders, -4.7, -10.2, 1.5, 0.3);
-
-    const side = meshBox(0.18, 2.8, 3.6, wallColor);
-    side.position.set(-4.0, 1.4, -12.0);
-    this.group.add(side);
-    addWallCollider(this.colliders, -4.0, -12.0, 0.3, 3.7);
-
-    // Piso tile
-    const tile = meshBox(4.6, 0.06, 3.5, 0xc8d0d8, { roughness: 0.45 });
-    tile.position.set(-6.5, 0.06, -12.1);
-    this.group.add(tile);
-
-    // Porta (aberta / batente)
-    const door = meshBox(0.08, 2.1, 0.85, 0x5c3a22);
-    door.position.set(-5.9, 1.1, -10.05);
-    door.rotation.y = -0.55;
-    this.group.add(door);
-
-    // Vasos
-    for (const x of [-7.6, -6.2]) {
-      const bowl = meshCyl(0.22, 0.18, 0.35, 0xf0f0f0, { roughness: 0.35 });
-      bowl.position.set(x, 0.35, -13.2);
-      this.group.add(bowl);
-      const tank = meshBox(0.35, 0.45, 0.18, 0xf0f0f0);
-      tank.position.set(x, 0.85, -13.45);
-      this.group.add(tank);
-      addWallCollider(this.colliders, x, -13.3, 0.5, 0.55);
-    }
-
-    // Pia
-    const sink = meshBox(0.9, 0.12, 0.45, 0xe8e8ec, { metalness: 0.3, roughness: 0.4 });
-    sink.position.set(-7.5, 0.95, -11.0);
-    this.group.add(sink);
-    const sinkBase = meshBox(0.7, 0.85, 0.35, 0xd0d0d4);
-    sinkBase.position.set(-7.5, 0.45, -11.0);
-    this.group.add(sinkBase);
-    const mirror = meshBox(0.7, 0.55, 0.04, 0xa0c0e0, { metalness: 0.6, roughness: 0.2 });
-    mirror.position.set(-7.5, 1.7, -10.35);
-    this.group.add(mirror);
-    addWallCollider(this.colliders, -7.5, -11.0, 1.0, 0.55);
-
-    // Placa
-    const bathTex = makeLabelTexture("BANHEIRO", {
-      w: 360,
-      h: 80,
-      color: "#ffffff",
-      bg: "#1a5a9a",
-      font: "bold 40px Bebas Neue, Arial Black, sans-serif",
-    });
-    const bathSign = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.1, 0.28),
-      new THREE.MeshBasicMaterial({ map: bathTex })
-    );
-    bathSign.position.set(-5.9, 2.55, -10.08);
-    this.group.add(bathSign);
-  }
-
-  _footballTvs() {
-    const mounts = [
-      { x: -5.5, y: 2.55, z: -13.85, rot: 0 },
-      { x: 0.2, y: 2.55, z: -13.85, rot: 0 },
-      { x: 4.2, y: 2.55, z: -13.85, rot: 0 },
-      { x: -8.55, y: 2.4, z: -6.5, rot: Math.PI / 2 },
-      { x: 8.55, y: 2.4, z: -4.5, rot: -Math.PI / 2 },
-      { x: -2.5, y: 2.6, z: -7.8, rot: 0.15 },
-    ];
-    for (const m of mounts) {
-      const tv = createFootballTv(1.4, 0.82);
-      tv.frame.position.set(m.x, m.y, m.z);
-      tv.frame.rotation.y = m.rot;
-      this.group.add(tv.frame);
-      this.tvs.push(tv);
-      // Glow leve
-      const glow = new THREE.PointLight(0x88aa66, 0.35, 5, 2);
-      glow.position.set(m.x, m.y - 0.2, m.z + (Math.abs(m.rot) < 0.2 ? 0.4 : 0));
-      this.scene.add(glow);
-    }
-  }
-
-  _makeTable(x, z, rot = 0, dark = true) {
+  _makeTable(x, z, rot = 0, dark = true, floorY = 0) {
     const wood = dark ? 0x1a1410 : CONFIG.colors.woodLight;
     const g = new THREE.Group();
     const top = meshBox(1.1, 0.06, 0.55, wood);
@@ -990,7 +485,7 @@ export class World {
     const leg = meshCyl(0.04, 0.05, 0.72, wood);
     leg.position.y = 0.36;
     g.add(leg);
-    g.position.set(x, 0, z);
+    g.position.set(x, floorY, z);
     g.rotation.y = rot;
     this.group.add(g);
     addWallCollider(this.colliders, x, z, 0.9, 0.55);
@@ -1003,39 +498,36 @@ export class World {
     ]) {
       const cx = x + Math.cos(rot) * ox - Math.sin(rot) * oz;
       const cz = z + Math.sin(rot) * ox + Math.cos(rot) * oz;
-      this._makeChair(cx, cz, cr + rot, dark);
-      // Only two seats interactive per table to avoid clutter
+      this._makeChair(cx, cz, cr + rot, dark, floorY);
     }
 
-    // Two interactive seats
     this.seats.push({
       kind: "seat",
       label: "Sentar",
-      position: new THREE.Vector3(x + 0.65, 0.55, z),
-      lookAt: new THREE.Vector3(x, 1.3, z),
+      position: new THREE.Vector3(x + 0.65, floorY + 0.55, z),
+      lookAt: new THREE.Vector3(x, floorY + 1.3, z),
       radius: 1.05,
     });
     this.seats.push({
       kind: "seat",
       label: "Sentar",
-      position: new THREE.Vector3(x - 0.65, 0.55, z),
-      lookAt: new THREE.Vector3(x, 1.3, z),
+      position: new THREE.Vector3(x - 0.65, floorY + 0.55, z),
+      lookAt: new THREE.Vector3(x, floorY + 1.3, z),
       radius: 1.05,
     });
 
-    // Condiments
     const ketchup = meshCyl(0.035, 0.04, 0.16, 0xcc2020);
-    ketchup.position.set(x + 0.15, 0.85, z + 0.08);
+    ketchup.position.set(x + 0.15, floorY + 0.85, z + 0.08);
     this.group.add(ketchup);
     const mustard = meshCyl(0.035, 0.04, 0.16, 0xe8b400);
-    mustard.position.set(x + 0.25, 0.85, z + 0.08);
+    mustard.position.set(x + 0.25, floorY + 0.85, z + 0.08);
     this.group.add(mustard);
     const napkin = meshBox(0.12, 0.1, 0.08, 0x222222);
-    napkin.position.set(x - 0.15, 0.8, z + 0.1);
+    napkin.position.set(x - 0.15, floorY + 0.8, z + 0.1);
     this.group.add(napkin);
   }
 
-  _makeChair(x, z, rot, dark = true) {
+  _makeChair(x, z, rot, dark = true, floorY = 0) {
     const wood = dark ? 0x1a1410 : CONFIG.colors.wood;
     const g = new THREE.Group();
     const seat = meshBox(0.38, 0.05, 0.38, wood);
@@ -1044,7 +536,6 @@ export class World {
     const back = meshBox(0.38, 0.42, 0.05, wood);
     back.position.set(0, 0.7, -0.16);
     g.add(back);
-    // Horizontal slats
     for (const sy of [0.55, 0.68, 0.82]) {
       const slat = meshBox(0.36, 0.04, 0.04, wood);
       slat.position.set(0, sy, -0.16);
@@ -1060,43 +551,20 @@ export class World {
       leg.position.set(lx, 0.225, lz);
       g.add(leg);
     }
-    g.position.set(x, 0, z);
+    g.position.set(x, floorY, z);
     g.rotation.y = rot;
     this.group.add(g);
   }
 
   _furniture() {
-    const spots = [
-      // Calçada / frente
-      [-5.5, 4.0, 0.1],
-      [-3.2, 4.6, -0.05],
-      [-0.8, 3.8, 0.12],
-      [1.6, 4.4, 0],
-      [4.0, 3.9, -0.1],
-      [-4.5, 2.4, 0.05],
-      [-1.8, 2.6, 0],
-      [1.0, 2.5, 0.08],
-      [3.5, 2.7, -0.05],
-      // Salão médio
-      [-3.0, -0.2, 0.05],
-      [0.5, -0.5, 0],
-      [-5.0, -1.8, 0.1],
-      [-2.2, -4.2, 0.08],
-      [0.8, -4.0, -0.05],
-      [-5.2, -5.5, 0.1],
-      [-1.0, -5.8, 0],
-      [1.8, -5.2, 0.06],
-      // Salão fundo (antes do banheiro/cozinha)
-      [-2.5, -7.5, 0.05],
-      [0.5, -7.8, -0.08],
-      [-5.0, -8.2, 0.1],
-      [-1.5, -9.5, 0],
-      [1.2, -9.0, 0.07],
-      [-2.8, -11.2, 0.05],
-      [0.2, -11.5, -0.05],
-    ];
-    for (const [x, z, rot] of spots) {
-      this._makeTable(x, z, rot, true);
+    placePlanTables(this, (x, z, rot, dark, floorY) => this._makeTable(x, z, rot, dark, floorY));
+    // Algumas mesas na calçada (lavanda)
+    for (const [x, z] of [
+      [-5, 3.2],
+      [-1, 3.5],
+      [3, 3.3],
+    ]) {
+      this._makeTable(x, z, 0.05, true, 0);
     }
   }
 
@@ -1142,26 +610,34 @@ export class World {
   }
 
   _spawnWaiters() {
+    const k = LAYOUT.kitchen;
     const spots = [
-      { id: "toninho", x: 4.0, z: -0.2, rot: -0.5 },
-      { id: "fabin", x: -1.2, z: 2.0, rot: 0.35 },
-      { id: "oliveira", x: -5.5, z: 1.2, rot: 0.2 },
-      { id: "val", x: 1.5, z: -2.6, rot: Math.PI * 0.12 },
-      { id: "ney", x: -3.2, z: -1.8, rot: -0.2 },
-      { id: "carlinhos", x: 6.5, z: 1.4, rot: -1.0 },
+      { id: "toninho", x: 4.5, z: -1.5, rot: -0.4, zones: ["blue", "interior"] },
+      { id: "fabin", x: -1.0, z: 0.5, rot: 0.2, zones: ["interior", "sidewalk"] },
+      { id: "oliveira", x: -8.5, z: -9.0, rot: 0.3, zones: ["interior", "green"] },
+      { id: "val", x: -6.0, z: -2.0, rot: 0.1, zones: ["green", "interior"] },
+      { id: "ney", x: -0.5, z: -10.5, rot: -0.2, zones: ["interior"] },
+      {
+        id: "carlinhos",
+        x: (k.x0 + k.x1) / 2,
+        z: (k.z0 + k.z1) / 2,
+        rot: Math.PI,
+        zones: ["kitchen"],
+      },
     ];
 
     for (const s of spots) {
       const def = WAITERS.find((w) => w.id === s.id);
       const mesh = buildWaiterMesh(def);
-      mesh.position.set(s.x, 0, s.z);
+      const fy = floorHeightAt(s.x, s.z);
+      mesh.position.set(s.x, fy, s.z);
       mesh.rotation.y = s.rot;
       this.group.add(mesh);
       const interactable = {
         kind: "waiter",
         id: def.id,
         label: `Falar com ${def.name}`,
-        position: new THREE.Vector3(s.x, 1.4, s.z),
+        position: new THREE.Vector3(s.x, fy + 1.4, s.z),
         radius: 1.7,
         def,
       };
@@ -1171,8 +647,8 @@ export class World {
         new NpcAgent({
           mesh,
           kind: "waiter",
-          zones: ["interior", "sidewalk"],
-          speed: 1.4,
+          zones: s.zones,
+          speed: s.id === "carlinhos" ? 1.05 : 1.35,
           interactable,
         })
       );
@@ -1182,16 +658,14 @@ export class World {
   /** Clientes novos a cada carregamento — aparência e quantidade aleatórias. */
   _spawnCustomers() {
     const usedNames = new Set();
-    const count = 8 + Math.floor(Math.random() * 5); // 8–12
+    const count = 10 + Math.floor(Math.random() * 6); // 10–15
     const spawnPads = [
-      ...[
-        [-7, 3], [-4, 4], [-1, 5], [2, 3.5], [5, 4.5], [7, 3],
-        [-5, 6], [0, 6.5], [4, 7], [-2, 2.2], [3, 2.5],
-        [-3, -1], [1, -2], [4.5, 0.5], [-6, 1.5],
-      ],
+      [-10, 3.5], [-4, 4], [0, 3.8], [5, 4],
+      [-10, -2], [-7, -3], [-1, -2], [0.5, -4],
+      [-10, -9], [-6, -10], [-2, -11], [-8, -13],
+      [6, -2], [8, -3],
     ];
 
-    // Embaralha pads
     for (let i = spawnPads.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [spawnPads[i], spawnPads[j]] = [spawnPads[j], spawnPads[i]];
@@ -1203,22 +677,26 @@ export class World {
       const [sx, sz] = spawnPads[i % spawnPads.length];
       const x = sx + (Math.random() - 0.5) * 0.6;
       const z = sz + (Math.random() - 0.5) * 0.6;
-      mesh.position.set(x, 0, z);
+      const fy = floorHeightAt(x, z);
+      mesh.position.set(x, fy, z);
       mesh.rotation.y = Math.random() * Math.PI * 2;
       this.group.add(mesh);
       this.customers.push({ def, mesh });
+      const roll = Math.random();
       const zones =
-        Math.random() < 0.35
-          ? ["interior", "sidewalk"]
-          : Math.random() < 0.5
-            ? ["sidewalk", "street"]
-            : ["sidewalk", "interior", "street"];
+        roll < 0.25
+          ? ["green", "interior"]
+          : roll < 0.5
+            ? ["interior", "sidewalk"]
+            : roll < 0.7
+              ? ["interior"]
+              : ["sidewalk", "interior", "blue"];
       this.npcAgents.push(
         new NpcAgent({
           mesh,
           kind: "customer",
           zones,
-          speed: 0.95 + Math.random() * 0.45,
+          speed: 0.95 + Math.random() * 0.4,
         })
       );
     }
@@ -1252,8 +730,8 @@ export class World {
         pos.z += (dz / dist) * push;
       }
     }
-    pos.x = Math.max(-12, Math.min(12, pos.x));
-    pos.z = Math.max(-13.4, Math.min(16, pos.z));
+    pos.x = Math.max(-13.2, Math.min(12.2, pos.x));
+    pos.z = Math.max(-15.1, Math.min(16, pos.z));
   }
 
   nearestInteractable(pos) {

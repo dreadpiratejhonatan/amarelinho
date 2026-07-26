@@ -21,6 +21,10 @@ export class Player {
     return this.position;
   }
 
+  _floorY() {
+    return this.world.getFloorHeight?.(this.position.x, this.position.z) ?? 0;
+  }
+
   standUp() {
     if (!this.sitting) return;
     this.sitting = false;
@@ -30,7 +34,7 @@ export class Player {
       if (away.lengthSq() < 0.01) away.set(0, 0, 1);
       away.normalize().multiplyScalar(0.7);
       this.position.copy(this.seat.position).add(away);
-      this.position.y = CONFIG.eyeHeight;
+      this.position.y = this._floorY() + CONFIG.eyeHeight;
     }
     this.seat = null;
   }
@@ -38,7 +42,8 @@ export class Player {
   sit(seat) {
     this.sitting = true;
     this.seat = seat;
-    this.position.set(seat.position.x, 1.15, seat.position.z);
+    const fy = this.world.getFloorHeight?.(seat.position.x, seat.position.z) ?? 0;
+    this.position.set(seat.position.x, fy + 1.15, seat.position.z);
     const dx = seat.lookAt.x - this.position.x;
     const dz = seat.lookAt.z - this.position.z;
     this.yaw = Math.atan2(-dx, -dz);
@@ -71,6 +76,8 @@ export class Player {
     this.position.x += this._wish.x * speed * dt;
     this.position.z += this._wish.z * speed * dt;
 
+    const eyeOnFloor = this._floorY() + CONFIG.eyeHeight;
+
     if (this.onGround && input.keys.has("Space")) {
       this.velY = CONFIG.jumpSpeed;
       this.onGround = false;
@@ -78,13 +85,16 @@ export class Player {
 
     this.velY -= CONFIG.gravity * dt;
     this.position.y += this.velY * dt;
-    if (this.position.y <= CONFIG.eyeHeight) {
-      this.position.y = CONFIG.eyeHeight;
+    if (this.position.y <= eyeOnFloor) {
+      this.position.y = eyeOnFloor;
       this.velY = 0;
       this.onGround = true;
     }
 
     this.world.resolveCollision(this.position, CONFIG.playerRadius);
+    // Reaplica altura após colisão (pode ter mudado de zona)
+    const fy = this._floorY() + CONFIG.eyeHeight;
+    if (this.onGround) this.position.y = fy;
     this._applyCamera();
   }
 

@@ -89,7 +89,7 @@ class Game {
     this.hud.show();
     this.state = "playing";
     // Olhar pro bar (−Z). Math.PI apontava pros prédios escuros da rua.
-    this.player.position.set(0.4, CONFIG.eyeHeight, 5.8);
+    this.player.position.set(-0.5, CONFIG.eyeHeight, 4.5);
     this.player.yaw = 0;
     this.player.pitch = -0.06;
     this.player.standUp();
