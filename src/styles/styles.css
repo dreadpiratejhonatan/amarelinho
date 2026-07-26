@@ -607,11 +607,13 @@ body.is-touch .hud__hint {
   font-family: "Bebas Neue", sans-serif;
   font-size: 38px;
   letter-spacing: 0.06em;
-  /* Visual only — tap/drag tratados no look (não rouba o dedo) */
-  pointer-events: none;
+  /* Recebe tap/arraste direto (handler em touch.js) */
+  pointer-events: auto;
   touch-action: none;
-  z-index: 5;
+  z-index: 6;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(255, 216, 74, 0.12);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .touch__btn.is-down {
