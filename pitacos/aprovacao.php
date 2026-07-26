@@ -9,7 +9,7 @@ require __DIR__ . '/lib.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#c9a000" />
   <meta name="robots" content="noindex" />
-  <title>Aprovação — Sugestões Amarelinho</title>
+  <title>Aprovar pitacos — Amarelinho</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -18,14 +18,14 @@ require __DIR__ . '/lib.php';
 <body>
   <main class="wrap">
     <p class="kicker">Painel do dono</p>
-    <h1 class="brand">APROVAÇÃO</h1>
+    <h1 class="brand">PITACOS</h1>
     <p class="lead">
-      Aprova os tickets do dia, copia o prompt compilado e manda pro Cursor Agent subir pra produção.
-      Um lote por dia — cada ticket fica separado no prompt.
+      Aprova os pitacos do dia, copia o prompt e manda pro Cursor Agent subir pra produção.
+      Um lote por dia — cada pitaco fica separado no prompt.
     </p>
 
     <nav class="nav">
-      <a href="./">← Caixa de sugestões</a>
+      <a href="./">← Caixa de pitacos</a>
       <a href="../">Bar</a>
     </nav>
 
@@ -39,7 +39,7 @@ require __DIR__ . '/lib.php';
           </div>
         </label>
       </form>
-      <p class="meta">PIN padrão no deploy: veja <code>sugestoes/config.php</code> (troca depois).</p>
+      <p class="meta">PIN padrão no deploy: veja <code>pitacos/config.php</code> (troca depois).</p>
       <div id="admin-msg" class="msg" role="status"></div>
     </section>
 
@@ -53,7 +53,7 @@ require __DIR__ . '/lib.php';
         <button type="button" class="btn btn--ghost" id="btn-logout">Sair</button>
       </div>
 
-      <h2 class="day-title" id="day-title">Tickets</h2>
+      <h2 class="day-title" id="day-title">Pitacos</h2>
       <div id="ticket-list"></div>
 
       <h2 class="day-title" style="margin-top:22px;font-size:24px">Prompt do dia (aprovados)</h2>

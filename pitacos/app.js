@@ -44,7 +44,7 @@ function wirePublicForm() {
     const btn = form.querySelector('button[type="submit"]');
     const body = (area?.value || form.body.value).trim();
     if (!body) {
-      showMsg(msg, "Escreve do jeito que vier — só não deixa em branco.", false);
+      showMsg(msg, "Manda o pitaco — só não deixa em branco.", false);
       area?.focus();
       return;
     }
@@ -59,13 +59,13 @@ function wirePublicForm() {
       refreshCount();
       showMsg(
         msg,
-        "Chegou na comanda. A gente lê, aprova e coloca no bar. Valeu demais!",
+        "Pitaco na comanda! A gente lê, aprova e coloca no bar. Valeu demais!",
         true
       );
-      btn.textContent = "Mandar outra";
+      btn.textContent = "Mandar outro";
     } catch (err) {
       showMsg(msg, err.message || "Não rolou enviar. Tenta de novo num instante.", false);
-      btn.textContent = "Mandar pro bar";
+      btn.textContent = "Mandar pitaco";
     } finally {
       btn.disabled = false;
     }
@@ -99,11 +99,11 @@ function wireAdmin() {
 
   async function refresh(day) {
     const data = await api("list", { day });
-    dayTitle.textContent = `Tickets · ${data.day}`;
+    dayTitle.textContent = `Pitacos · ${data.day}`;
     promptEl.value = data.prompt || "";
     listEl.innerHTML = "";
     if (!data.tickets.length) {
-      listEl.innerHTML = '<p class="empty">Nenhum ticket neste dia.</p>';
+      listEl.innerHTML = '<p class="empty">Nenhum pitaco neste dia.</p>';
       return;
     }
     for (const t of data.tickets) {
@@ -139,7 +139,7 @@ function wireAdmin() {
             });
             promptEl.value = res.prompt || "";
             await refresh(t.day);
-            showMsg(msg, `Ticket ${t.id} → ${status}`, true);
+            showMsg(msg, `Pitaco ${t.id} → ${status}`, true);
           } catch (err) {
             showMsg(msg, err.message, false);
           }
@@ -195,7 +195,7 @@ function wireAdmin() {
   document.getElementById("btn-copy-prompt")?.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(promptEl.value);
-      showMsg(msg, "Prompt do dia copiado. Cola no Cursor Agent pra subir pra produção.", true);
+      showMsg(msg, "Prompt dos pitacos copiado. Cola no Cursor Agent pra subir pra produção.", true);
     } catch {
       promptEl.select();
       showMsg(msg, "Seleciona o texto e copia manualmente (Ctrl/Cmd+C).", false);

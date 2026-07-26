@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 process.chdir(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIST = "dist";
 const HOST = path.join("release", "hostgator-amarelinho");
-const CACHE = "v25";
+const CACHE = "v26";
 
 fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(path.join(DIST, "styles"), { recursive: true });
@@ -45,11 +45,12 @@ html = html
 
 fs.writeFileSync(path.join(DIST, "index.html"), html);
 
-// Caixa de sugestões (PHP na HostGator). Pasta data/ NÃO sobe no FTP —
+// Caixa de pitacos (PHP na HostGator). Pasta data/ NÃO sobe no FTP —
 // o PHP cria data/ + .htaccess no primeiro envio (evita 553 no deploy).
-if (fs.existsSync("sugestoes")) {
-  const sugDist = path.join(DIST, "sugestoes");
-  fs.cpSync("sugestoes", sugDist, {
+for (const folder of ["pitacos", "sugestoes"]) {
+  if (!fs.existsSync(folder)) continue;
+  const out = path.join(DIST, folder);
+  fs.cpSync(folder, out, {
     recursive: true,
     filter: (src) => !src.includes(`${path.sep}data${path.sep}`) && !src.endsWith(`${path.sep}data`),
   });
