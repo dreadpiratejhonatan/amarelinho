@@ -5,7 +5,7 @@ export class Player {
   constructor(camera, world) {
     this.camera = camera;
     this.world = world;
-    this.position = new THREE.Vector3(0.2, CONFIG.eyeHeight, 4.8);
+    this.position = new THREE.Vector3(0.5, CONFIG.eyeHeight, 7.2);
     this.yaw = Math.PI;
     this.pitch = -0.08;
     this.velY = 0;

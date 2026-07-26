@@ -25,6 +25,8 @@ class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.35;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 80);
@@ -66,14 +68,14 @@ class Game {
     this.menu.setAttribute("aria-hidden", "true");
     this.hud.show();
     this.state = "playing";
-    this.player.position.set(0.2, CONFIG.eyeHeight, 4.8);
+    this.player.position.set(0.5, CONFIG.eyeHeight, 7.2);
     this.player.yaw = Math.PI;
-    this.player.pitch = -0.08;
+    this.player.pitch = -0.05;
     this.player.standUp();
     this.input.requestLock();
     this.touch?.show();
     this.sfx.open();
-    this.hud.showToast("Boa noite. A calçada do Amarelinho te espera.", 3200);
+    this.hud.showToast("Boa noite. Anda pela calçada e pela rua — o Amarelinho tá aberto.", 3400);
   }
 
   _onResize() {

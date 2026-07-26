@@ -197,8 +197,8 @@ function makeNametag(name) {
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
   );
-  sprite.scale.set(0.85, 0.22, 1);
-  sprite.position.y = 2.05;
+  sprite.scale.set(1.15, 0.28, 1);
+  sprite.position.y = 2.15;
   return sprite;
 }
 
