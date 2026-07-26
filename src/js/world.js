@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { WAITERS, buildWaiterMesh, randomCustomerDef, buildCustomerMesh } from "./npcs.js";
 import { NpcAgent } from "./npcAi.js";
+import { createFootballTv } from "./footballTv.js";
 
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
@@ -233,6 +234,7 @@ export class World {
     this.waiters = [];
     this.customers = [];
     this.npcAgents = [];
+    this.tvs = [];
     this.group = new THREE.Group();
     this.scene.add(this.group);
     this._awningLights = [];
@@ -246,7 +248,9 @@ export class World {
     this._awning();
     this._interiorSalon();
     this._counterKitchen();
+    this._bathroom();
     this._furniture();
+    this._footballTvs();
     this._streetProps();
     this._spawnWaiters();
     this._spawnCustomers();
@@ -286,13 +290,21 @@ export class World {
       this._awningLights.push(l);
     }
 
-    // Bright interior fills
+    // Bright interior fills (salão fundo + cozinha + banheiro)
     for (const [x, z, i] of [
       [-3, -2.2, 2.4],
       [0.5, -1.5, 2.8],
       [3.5, -1.8, 2.2],
       [-2, 0.2, 2.0],
       [2, 0.4, 2.0],
+      [-4, -6.5, 2.2],
+      [0, -7.5, 2.6],
+      [3, -6.0, 2.0],
+      [-5, -11, 1.8],
+      [1, -11.5, 2.2],
+      [6, -9.5, 2.4],
+      [6.5, -12.5, 2.0],
+      [-7, -12, 1.5],
     ]) {
       const interior = new THREE.PointLight(0xfff2d8, i, 16, 1.35);
       interior.position.set(x, 2.7, z);
@@ -366,7 +378,7 @@ export class World {
   _buildCityBackdrop() {
     // Bloco branco com sacadas/arcos (esquerda-centro, atrás do bar)
     const whiteX = -4;
-    const whiteZ = -9.5;
+    const whiteZ = -17.5;
     const whiteW = 14;
     const whiteH = 22;
     const white = meshBox(whiteW, whiteH, 3.2, 0xece8e0, { roughness: 0.7 });
@@ -399,7 +411,7 @@ export class World {
 
     // Torre de vidro à direita
     const glassX = 10;
-    const glassZ = -10;
+    const glassZ = -18;
     const glassW = 6.5;
     const glassH = 28;
     const glass = meshBox(glassW, glassH, 4.0, 0x6a7a8a, {
@@ -429,7 +441,7 @@ export class World {
 
     // Prédio auxiliar à esquerda
     const left = meshBox(8, 16, 2.8, 0xd4cfc6, { roughness: 0.75 });
-    left.position.set(-16, 8, -8.5);
+    left.position.set(-16, 8, -17);
     this.group.add(left);
     for (let floor = 0; floor < 6; floor++) {
       for (let col = 0; col < 3; col++) {
@@ -437,7 +449,7 @@ export class World {
           emissive: 0x556677,
           emissiveIntensity: 0.2,
         });
-        w.position.set(-18.2 + col * 2.2, 2 + floor * 2.4, -7.05);
+        w.position.set(-18.2 + col * 2.2, 2 + floor * 2.4, -15.55);
         this.group.add(w);
       }
     }
@@ -468,26 +480,29 @@ export class World {
   _buildingShell() {
     const C = CONFIG.colors;
     const Y = 0xffd400;
-    const W = 18; // wider bar
-    const depth = 7.2;
+    const W = 18;
+    // Salão profundo: fachada ~z=1 → fundo ~z=-14
+    const backZ = -14.0;
+    const sideZ = -6.4;
+    const depth = 15.4;
 
     // Back wall
     const back = meshBox(W, 3.8, 0.28, Y, { roughness: 0.55 });
-    back.position.set(0, 1.9, -4.8);
+    back.position.set(0, 1.9, backZ);
     this.group.add(back);
-    addWallCollider(this.colliders, 0, -4.8, W, 0.45);
+    addWallCollider(this.colliders, 0, backZ, W, 0.45);
 
     const brickBack = meshBox(W, 1.1, 0.32, C.brick, { roughness: 0.88 });
-    brickBack.position.set(0, 0.55, -4.75);
+    brickBack.position.set(0, 0.55, backZ + 0.05);
     this.group.add(brickBack);
 
     // Side walls
     const left = meshBox(0.28, 3.8, depth, Y, { roughness: 0.55 });
-    left.position.set(-W / 2, 1.9, -1.2);
+    left.position.set(-W / 2, 1.9, sideZ);
     this.group.add(left);
-    addWallCollider(this.colliders, -W / 2, -1.2, 0.45, depth);
+    addWallCollider(this.colliders, -W / 2, sideZ, 0.45, depth);
     const leftBrick = meshBox(0.32, 1.1, depth, C.brick, { roughness: 0.88 });
-    leftBrick.position.set(-W / 2, 0.55, -1.2);
+    leftBrick.position.set(-W / 2, 0.55, sideZ);
     this.group.add(leftBrick);
 
     const whiteWing = meshBox(0.35, 3.8, 4.0, 0xf0f0f0, { roughness: 0.7 });
@@ -495,18 +510,18 @@ export class World {
     this.group.add(whiteWing);
 
     const right = meshBox(0.28, 3.8, depth, Y, { roughness: 0.55 });
-    right.position.set(W / 2, 1.9, -1.2);
+    right.position.set(W / 2, 1.9, sideZ);
     this.group.add(right);
-    addWallCollider(this.colliders, W / 2, -1.2, 0.45, depth);
+    addWallCollider(this.colliders, W / 2, sideZ, 0.45, depth);
     const rightBrick = meshBox(0.32, 1.1, depth, C.brick, { roughness: 0.88 });
-    rightBrick.position.set(W / 2, 0.55, -1.2);
+    rightBrick.position.set(W / 2, 0.55, sideZ);
     this.group.add(rightBrick);
 
     const blue = meshBox(1.4, 4.0, 5.0, 0x1e5a9a, { roughness: 0.7 });
     blue.position.set(W / 2 + 1.2, 2.0, -0.8);
     this.group.add(blue);
 
-    // Front pillars (open facade) — wider spacing
+    // Front pillars (open facade)
     const pillarXs = [-7.5, -4.5, -1.5, 1.5, 4.5, 7.5];
     for (const x of pillarXs) {
       const brick = meshBox(0.55, 1.15, 0.55, C.brick, { roughness: 0.88 });
@@ -524,26 +539,26 @@ export class World {
       }
     }
 
-    // Floor + bright ceiling
-    const floor = meshBox(W - 0.4, 0.08, depth - 0.4, 0xd0c0a0, { roughness: 0.7 });
-    floor.position.set(0, 0.04, -1.5);
+    // Floor + ceiling (salão inteiro)
+    const floor = meshBox(W - 0.4, 0.08, depth - 0.5, 0xd0c0a0, { roughness: 0.7 });
+    floor.position.set(0, 0.04, sideZ);
     this.group.add(floor);
 
-    const ceil = meshBox(W, 0.14, depth + 0.6, 0xfff8e8, {
+    const ceil = meshBox(W, 0.14, depth + 0.4, 0xfff8e8, {
       emissive: 0xffe08a,
       emissiveIntensity: 0.35,
       roughness: 0.55,
     });
-    ceil.position.set(0, 3.65, -1.2);
+    ceil.position.set(0, 3.65, sideZ);
     this.group.add(ceil);
 
-    for (const z of [-3.8, -2.2, -0.6, 0.8]) {
+    for (const z of [-12.5, -10.5, -8.5, -6.5, -4.5, -2.5, -0.6, 0.8]) {
       const beam = meshBox(W - 0.4, 0.08, 0.12, 0x1a1a1a);
       beam.position.set(0, 3.55, z);
       this.group.add(beam);
     }
 
-    // Parapeito amarelo + fachada preta grande (foto real)
+    // Parapeito + fachada preta
     const parapet = meshBox(W + 0.4, 0.55, 0.55, Y, { roughness: 0.55 });
     parapet.position.set(0, 3.95, 1.15);
     this.group.add(parapet);
@@ -569,7 +584,6 @@ export class World {
     signPlane.position.set(0, 4.75, 1.34);
     this.group.add(signPlane);
 
-    // Telhado de telha atrás da fachada
     const roof = meshBox(W + 1.2, 0.18, 1.8, 0x6b2e1f, { roughness: 0.85 });
     roof.position.set(0, 5.55, 0.4);
     roof.rotation.x = -0.18;
@@ -581,7 +595,6 @@ export class World {
       this.group.add(ridge);
     }
 
-    // Luz na placa
     const signLight = new THREE.PointLight(0xffffff, 1.8, 12, 1.5);
     signLight.position.set(0, 5.2, 3.2);
     this.scene.add(signLight);
@@ -627,19 +640,22 @@ export class World {
   _interiorSalon() {
     const Y = 0xffd400;
 
+    // Pilares internos (espaçados no salão longo)
     for (const [x, z] of [
       [-4.5, -2.4],
-      [-1.2, -2.4],
       [2.2, -2.4],
-      [-4.5, -0.4],
-      [2.2, -0.4],
+      [-4.5, -6.5],
+      [2.2, -6.5],
+      [-4.5, -10.5],
+      [1.5, -10.5],
     ]) {
-      const p = meshBox(0.55, 3.4, 0.55, Y);
+      const p = meshBox(0.5, 3.4, 0.5, Y);
       p.position.set(x, 1.7, z);
       this.group.add(p);
-      addWallCollider(this.colliders, x, z, 0.6, 0.6);
+      addWallCollider(this.colliders, x, z, 0.55, 0.55);
     }
 
+    // Meia-parede / divisória salão
     for (const [x, z, w, d] of [
       [-2.2, -3.0, 3.2, 0.2],
       [3.2, -1.2, 0.2, 2.8],
@@ -658,30 +674,18 @@ export class World {
       roughness: 0.7,
       metalness: 0.05,
     });
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), flagMat);
-    flag.position.set(-1.2, 2.55, -4.62);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), flagMat);
+    flag.position.set(-1.5, 2.55, -13.85);
     this.group.add(flag);
 
     const fan = meshCyl(0.32, 0.32, 0.08, 0x1a1a1a);
     fan.rotation.x = Math.PI / 2;
-    fan.position.set(3.0, 2.85, -4.6);
+    fan.position.set(3.0, 2.85, -13.85);
     this.group.add(fan);
-
-    for (const x of [-5.5, 0.5, 5.0]) {
-      const tv = meshBox(1.05, 0.62, 0.07, 0x111111);
-      tv.position.set(x, 2.55, -4.6);
-      this.group.add(tv);
-      const screen = meshBox(0.9, 0.48, 0.02, 0x1a5080, {
-        emissive: 0x3a80b0,
-        emissiveIntensity: 0.9,
-      });
-      screen.position.set(x, 2.55, -4.55);
-      this.group.add(screen);
-    }
 
     const clock = meshCyl(0.18, 0.18, 0.05, 0xf0f0f0);
     clock.rotation.x = Math.PI / 2;
-    clock.position.set(6.5, 3.0, -4.6);
+    clock.position.set(6.5, 3.0, -13.85);
     this.group.add(clock);
 
     const saidaTex = makeLabelTexture("SAÍDA", {
@@ -699,12 +703,17 @@ export class World {
     saida.rotation.y = -Math.PI / 2;
     this.group.add(saida);
 
+    // Luminárias pelo salão fundo
     for (const [x, z] of [
       [-4, -2.5],
       [0, -2.0],
       [4, -2.2],
-      [-2, 0.2],
-      [3, 0.4],
+      [-2, -5.5],
+      [2, -5.8],
+      [-3, -9.0],
+      [1, -9.2],
+      [4, -8.5],
+      [-1, -12.0],
     ]) {
       for (let i = 0; i < 3; i++) {
         const shade = meshBox(0.24, 0.1, 0.24, 0xfff4d0, {
@@ -720,19 +729,16 @@ export class World {
   _counterKitchen() {
     const C = CONFIG.colors;
 
-    // Counter body
-    // Counter toward the right side of the bigger bar
+    // Balcão (frente-direita — pedido do jogador)
     const counter = meshBox(3.4, 1.05, 1.0, C.wood);
     counter.position.set(5.2, 0.55, -2.0);
     this.group.add(counter);
     addWallCollider(this.colliders, 5.2, -2.0, 3.5, 1.1);
 
-    // Dark granite top
     const top = meshBox(3.45, 0.08, 1.05, 0x2a2a2e, { roughness: 0.35, metalness: 0.15 });
     top.position.set(5.2, 1.12, -2.0);
     this.group.add(top);
 
-    // Generic yellow diamond (no brand)
     const diamond = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.48, 0),
       mat(0xffd84a, { emissive: 0xaa8800, emissiveIntensity: 0.35, roughness: 0.4 })
@@ -742,7 +748,6 @@ export class World {
     diamond.scale.set(1, 0.14, 1);
     this.group.add(diamond);
 
-    // Red freezer (generic)
     const freezer = meshBox(0.85, 0.95, 0.7, 0xc42020, { roughness: 0.55 });
     freezer.position.set(2.8, 0.5, -3.4);
     this.group.add(freezer);
@@ -751,69 +756,132 @@ export class World {
     freezerLid.position.set(2.8, 1.0, -3.4);
     this.group.add(freezerLid);
 
-    // Glass food warmer
     const warmer = meshBox(0.9, 0.55, 0.55, 0xddeeff, { roughness: 0.25, metalness: 0.2 });
     warmer.position.set(4.2, 1.45, -2.0);
     this.group.add(warmer);
 
-    // Shelves + bottles
-    const shelfBack = meshBox(3.2, 2.3, 0.22, C.woodLight);
-    shelfBack.position.set(5.5, 2.25, -4.4);
-    this.group.add(shelfBack);
+    // ——— Cozinha fundo-direita ———
+    // Divisória com vão de entrada (~z=-8.5)
+    const kitWallBack = meshBox(0.2, 2.6, 4.2, 0xe8d8a8);
+    kitWallBack.position.set(3.6, 1.3, -11.8);
+    this.group.add(kitWallBack);
+    addWallCollider(this.colliders, 3.6, -11.8, 0.35, 4.3);
 
+    const kitWallFront = meshBox(0.2, 2.6, 1.4, 0xe8d8a8);
+    kitWallFront.position.set(3.6, 1.3, -7.6);
+    this.group.add(kitWallFront);
+    addWallCollider(this.colliders, 3.6, -7.6, 0.35, 1.5);
+    const bench = meshBox(4.2, 0.9, 0.85, 0x4a4a50, { metalness: 0.45, roughness: 0.4 });
+    bench.position.set(6.4, 0.5, -11.5);
+    this.group.add(bench);
+    addWallCollider(this.colliders, 6.4, -11.5, 4.3, 0.95);
+
+    const chapa = meshBox(1.6, 0.08, 0.7, 0x2a2a2e, { metalness: 0.7, roughness: 0.35 });
+    chapa.position.set(5.2, 0.98, -11.5);
+    this.group.add(chapa);
+    const chapaGlow = meshBox(1.4, 0.02, 0.55, 0xff6622, {
+      emissive: 0xff4400,
+      emissiveIntensity: 0.75,
+    });
+    chapaGlow.position.set(5.2, 1.02, -11.5);
+    this.group.add(chapaGlow);
+    // Espátula / óleo
+    const spatula = meshBox(0.08, 0.02, 0.35, 0xc0c0c0, { metalness: 0.8, roughness: 0.3 });
+    spatula.position.set(5.9, 1.05, -11.35);
+    this.group.add(spatula);
+
+    // Fogão
+    const stove = meshBox(1.1, 0.95, 0.75, 0x1a1a1e, { metalness: 0.4, roughness: 0.45 });
+    stove.position.set(7.4, 0.5, -11.5);
+    this.group.add(stove);
+    for (const [ox, oz] of [
+      [-0.22, -0.15],
+      [0.22, -0.15],
+      [-0.22, 0.15],
+      [0.22, 0.15],
+    ]) {
+      const burner = meshCyl(0.12, 0.12, 0.04, 0x333338, { metalness: 0.5, roughness: 0.4 });
+      burner.position.set(7.4 + ox, 1.0, -11.5 + oz);
+      this.group.add(burner);
+      const flame = meshCyl(0.06, 0.02, 0.08, 0xff6622, {
+        emissive: 0xff4400,
+        emissiveIntensity: 1.1,
+      });
+      flame.position.set(7.4 + ox, 1.08, -11.5 + oz);
+      this.group.add(flame);
+    }
+    const knobs = meshBox(0.9, 0.12, 0.08, 0x888890);
+    knobs.position.set(7.4, 0.55, -11.1);
+    this.group.add(knobs);
+
+    // Coifa
+    const hood = meshBox(2.4, 0.12, 1.1, 0xc0c4c8, { metalness: 0.7, roughness: 0.35 });
+    hood.position.set(6.4, 2.75, -11.5);
+    this.group.add(hood);
+    const hoodCone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.45, 0.5, 4),
+      mat(0xb8bcc0, { metalness: 0.7, roughness: 0.35 })
+    );
+    hoodCone.position.set(6.4, 3.05, -11.5);
+    hoodCone.rotation.y = Math.PI / 4;
+    this.group.add(hoodCone);
+
+    // Forno / brasa
+    const oven = meshBox(0.9, 0.85, 0.5, 0x1a1a1a);
+    oven.position.set(7.5, 0.7, -13.0);
+    this.group.add(oven);
+    addWallCollider(this.colliders, 7.5, -13.0, 1.0, 0.6);
+    const glow = meshBox(0.7, 0.55, 0.05, 0xff6622, {
+      emissive: 0xff4400,
+      emissiveIntensity: 0.9,
+    });
+    glow.position.set(7.5, 0.7, -12.72);
+    this.group.add(glow);
+
+    // Prateleiras + bebidas no fundo da cozinha
+    const shelfBack = meshBox(3.6, 2.3, 0.22, C.woodLight);
+    shelfBack.position.set(6.2, 2.25, -13.7);
+    this.group.add(shelfBack);
     for (let row = 0; row < 3; row++) {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 12; i++) {
         const bottle = meshCyl(
           0.045,
           0.055,
           0.26 + (i % 3) * 0.05,
           [0x224422, 0x553311, 0x222266, 0xccaa66, 0xaaaaee][i % 5]
         );
-        bottle.position.set(4.2 + i * 0.24, 1.35 + row * 0.55, -4.25);
+        bottle.position.set(4.6 + i * 0.24, 1.35 + row * 0.55, -13.55);
         this.group.add(bottle);
       }
     }
-
-    // Fruit on top shelf
     const pineapple = meshCyl(0.12, 0.14, 0.28, 0xd4a017);
-    pineapple.position.set(4.6, 3.05, -4.2);
+    pineapple.position.set(5.0, 3.05, -13.5);
     this.group.add(pineapple);
     const crown = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.2, 8), mat(0x2d6a28));
-    crown.position.set(4.6, 3.3, -4.2);
+    crown.position.set(5.0, 3.3, -13.5);
     this.group.add(crown);
-    const bananas = meshBox(0.35, 0.12, 0.18, 0xf0d030);
-    bananas.position.set(5.3, 3.0, -4.2);
-    this.group.add(bananas);
 
-    // Exhaust hood
-    const hood = meshBox(1.6, 0.12, 1.0, 0xc0c4c8, { metalness: 0.7, roughness: 0.35 });
-    hood.position.set(6.8, 2.65, -3.2);
-    this.group.add(hood);
-    const hoodCone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.55, 0.55, 4),
-      mat(0xb8bcc0, { metalness: 0.7, roughness: 0.35 })
-    );
-    hoodCone.position.set(6.8, 2.95, -3.2);
-    hoodCone.rotation.y = Math.PI / 4;
-    this.group.add(hoodCone);
-
-    // Oven opening
-    const oven = meshBox(0.9, 0.85, 0.5, 0x1a1a1a);
-    oven.position.set(7.0, 0.7, -3.5);
-    this.group.add(oven);
-    const glow = meshBox(0.7, 0.55, 0.05, 0xff6622, {
-      emissive: 0xff4400,
-      emissiveIntensity: 0.9,
-    });
-    glow.position.set(7.0, 0.7, -3.22);
-    this.group.add(glow);
-
-    // Hanging glasses
     for (let i = 0; i < 10; i++) {
       const g = meshCyl(0.045, 0.035, 0.11, 0xddeeff, { roughness: 0.2, metalness: 0.1 });
-      g.position.set(4.3 + i * 0.22, 3.0, -4.2);
+      g.position.set(5.5 + i * 0.22, 3.0, -13.5);
       this.group.add(g);
     }
+
+    // Placa COZINHA
+    const kitTex = makeLabelTexture("COZINHA", {
+      w: 320,
+      h: 80,
+      color: "#1a1408",
+      bg: "#ffd84a",
+      font: "bold 42px Bebas Neue, Arial Black, sans-serif",
+    });
+    const kitSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.0, 0.28),
+      new THREE.MeshBasicMaterial({ map: kitTex })
+    );
+    kitSign.position.set(3.72, 2.6, -8.2);
+    kitSign.rotation.y = Math.PI / 2;
+    this.group.add(kitSign);
 
     this.interactables.push({
       kind: "counter",
@@ -821,6 +889,96 @@ export class World {
       position: new THREE.Vector3(4.6, 1.1, -1.1),
       radius: 1.8,
     });
+  }
+
+  _bathroom() {
+    // Banheiro canto esquerdo fundo
+    const wallColor = 0xe8e0d0;
+    // Parede frontal do banheiro (com vão de porta em x≈-6.2)
+    const frontL = meshBox(2.2, 2.8, 0.18, wallColor);
+    frontL.position.set(-7.6, 1.4, -10.2);
+    this.group.add(frontL);
+    addWallCollider(this.colliders, -7.6, -10.2, 2.3, 0.3);
+    const frontR = meshBox(1.4, 2.8, 0.18, wallColor);
+    frontR.position.set(-4.7, 1.4, -10.2);
+    this.group.add(frontR);
+    addWallCollider(this.colliders, -4.7, -10.2, 1.5, 0.3);
+
+    const side = meshBox(0.18, 2.8, 3.6, wallColor);
+    side.position.set(-4.0, 1.4, -12.0);
+    this.group.add(side);
+    addWallCollider(this.colliders, -4.0, -12.0, 0.3, 3.7);
+
+    // Piso tile
+    const tile = meshBox(4.6, 0.06, 3.5, 0xc8d0d8, { roughness: 0.45 });
+    tile.position.set(-6.5, 0.06, -12.1);
+    this.group.add(tile);
+
+    // Porta (aberta / batente)
+    const door = meshBox(0.08, 2.1, 0.85, 0x5c3a22);
+    door.position.set(-5.9, 1.1, -10.05);
+    door.rotation.y = -0.55;
+    this.group.add(door);
+
+    // Vasos
+    for (const x of [-7.6, -6.2]) {
+      const bowl = meshCyl(0.22, 0.18, 0.35, 0xf0f0f0, { roughness: 0.35 });
+      bowl.position.set(x, 0.35, -13.2);
+      this.group.add(bowl);
+      const tank = meshBox(0.35, 0.45, 0.18, 0xf0f0f0);
+      tank.position.set(x, 0.85, -13.45);
+      this.group.add(tank);
+      addWallCollider(this.colliders, x, -13.3, 0.5, 0.55);
+    }
+
+    // Pia
+    const sink = meshBox(0.9, 0.12, 0.45, 0xe8e8ec, { metalness: 0.3, roughness: 0.4 });
+    sink.position.set(-7.5, 0.95, -11.0);
+    this.group.add(sink);
+    const sinkBase = meshBox(0.7, 0.85, 0.35, 0xd0d0d4);
+    sinkBase.position.set(-7.5, 0.45, -11.0);
+    this.group.add(sinkBase);
+    const mirror = meshBox(0.7, 0.55, 0.04, 0xa0c0e0, { metalness: 0.6, roughness: 0.2 });
+    mirror.position.set(-7.5, 1.7, -10.35);
+    this.group.add(mirror);
+    addWallCollider(this.colliders, -7.5, -11.0, 1.0, 0.55);
+
+    // Placa
+    const bathTex = makeLabelTexture("BANHEIRO", {
+      w: 360,
+      h: 80,
+      color: "#ffffff",
+      bg: "#1a5a9a",
+      font: "bold 40px Bebas Neue, Arial Black, sans-serif",
+    });
+    const bathSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.28),
+      new THREE.MeshBasicMaterial({ map: bathTex })
+    );
+    bathSign.position.set(-5.9, 2.55, -10.08);
+    this.group.add(bathSign);
+  }
+
+  _footballTvs() {
+    const mounts = [
+      { x: -5.5, y: 2.55, z: -13.85, rot: 0 },
+      { x: 0.2, y: 2.55, z: -13.85, rot: 0 },
+      { x: 4.2, y: 2.55, z: -13.85, rot: 0 },
+      { x: -8.55, y: 2.4, z: -6.5, rot: Math.PI / 2 },
+      { x: 8.55, y: 2.4, z: -4.5, rot: -Math.PI / 2 },
+      { x: -2.5, y: 2.6, z: -7.8, rot: 0.15 },
+    ];
+    for (const m of mounts) {
+      const tv = createFootballTv(1.4, 0.82);
+      tv.frame.position.set(m.x, m.y, m.z);
+      tv.frame.rotation.y = m.rot;
+      this.group.add(tv.frame);
+      this.tvs.push(tv);
+      // Glow leve
+      const glow = new THREE.PointLight(0x88aa66, 0.35, 5, 2);
+      glow.position.set(m.x, m.y - 0.2, m.z + (Math.abs(m.rot) < 0.2 ? 0.4 : 0));
+      this.scene.add(glow);
+    }
   }
 
   _makeTable(x, z, rot = 0, dark = true) {
@@ -909,6 +1067,7 @@ export class World {
 
   _furniture() {
     const spots = [
+      // Calçada / frente
       [-5.5, 4.0, 0.1],
       [-3.2, 4.6, -0.05],
       [-0.8, 3.8, 0.12],
@@ -918,9 +1077,23 @@ export class World {
       [-1.8, 2.6, 0],
       [1.0, 2.5, 0.08],
       [3.5, 2.7, -0.05],
+      // Salão médio
       [-3.0, -0.2, 0.05],
       [0.5, -0.5, 0],
       [-5.0, -1.8, 0.1],
+      [-2.2, -4.2, 0.08],
+      [0.8, -4.0, -0.05],
+      [-5.2, -5.5, 0.1],
+      [-1.0, -5.8, 0],
+      [1.8, -5.2, 0.06],
+      // Salão fundo (antes do banheiro/cozinha)
+      [-2.5, -7.5, 0.05],
+      [0.5, -7.8, -0.08],
+      [-5.0, -8.2, 0.1],
+      [-1.5, -9.5, 0],
+      [1.2, -9.0, 0.07],
+      [-2.8, -11.2, 0.05],
+      [0.2, -11.5, -0.05],
     ];
     for (const [x, z, rot] of spots) {
       this._makeTable(x, z, rot, true);
@@ -1057,6 +1230,14 @@ export class World {
     }
   }
 
+  updateTvs(now) {
+    // Atualiza ~20 fps pra não pesar
+    if (!this._tvAcc) this._tvAcc = 0;
+    this._tvAcc += 1;
+    if (this._tvAcc % 3 !== 0) return;
+    for (const tv of this.tvs) tv.draw(now);
+  }
+
   resolveCollision(pos, radius) {
     for (const c of this.colliders) {
       const nearestX = Math.max(c.minX, Math.min(pos.x, c.maxX));
@@ -1072,7 +1253,7 @@ export class World {
       }
     }
     pos.x = Math.max(-12, Math.min(12, pos.x));
-    pos.z = Math.max(-4.2, Math.min(16, pos.z));
+    pos.z = Math.max(-13.4, Math.min(16, pos.z));
   }
 
   nearestInteractable(pos) {

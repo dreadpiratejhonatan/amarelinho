@@ -178,6 +178,7 @@ class Game {
 
     if (playing || this.state === "menu" || this.state === "dialogue") {
       this.world.updateNpcs(dt);
+      this.world.updateTvs(now);
     }
   }
 
