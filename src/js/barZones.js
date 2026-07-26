@@ -74,9 +74,36 @@ function label(text, bg, fg = "#ffffff", opts = {}) {
 }
 
 /** Letreiro da fachada: canvas largo pra não esticar e ficar embassado. */
-function facadeSignTexture(text) {
-  // Proporção ≈ largura do plano (W*0.92) / altura 1.1
-  return label(text, "#0a0a0a", "#ffffff", { w: 4096, h: 192, fontSize: 150, anisotropy: 16 });
+function facadeSignTexture(text, planeW) {
+  const tw = 4096;
+  const th = 192;
+  const tex = label(text, "#0a0a0a", "#ffffff", { w: tw, h: th, fontSize: 150, anisotropy: 16 });
+  // Redesanha quando Bebas Neue chegar (senão cai em Arial e fica feio)
+  if (typeof document !== "undefined" && document.fonts?.ready) {
+    document.fonts.ready.then(() => {
+      const canvas = tex.image;
+      if (!canvas?.getContext) return;
+      const ctx = canvas.getContext("2d");
+      const family = 'Bebas Neue, "Arial Black", sans-serif';
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, tw, th);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      let size = 150;
+      ctx.font = `bold ${size}px ${family}`;
+      while (size > 24 && ctx.measureText(text).width > tw * 0.92) {
+        size -= 2;
+        ctx.font = `bold ${size}px ${family}`;
+      }
+      ctx.fillText(text, tw / 2, th / 2 + size * 0.04);
+      tex.needsUpdate = true;
+    }).catch(() => {});
+  }
+  tex.userData = { planeH: planeW * (th / tw) };
+  return tex;
 }
 
 /**
@@ -150,11 +177,12 @@ export function buildBarFromPlan(world) {
   blackBoard.position.set(cx, 4.75, B.z1 - 0.25);
   world.group.add(blackBoard);
   const signW = W * 0.92;
-  const signH = 1.1;
+  const signMap = facadeSignTexture("AMARELINHO DAS BATIDAS", signW);
+  const signH = signMap.userData.planeH || 1.1;
   const sign = new THREE.Mesh(
     new THREE.PlaneGeometry(signW, signH),
     new THREE.MeshBasicMaterial({
-      map: facadeSignTexture("AMARELINHO DAS BATIDAS"),
+      map: signMap,
       toneMapped: false,
     })
   );
