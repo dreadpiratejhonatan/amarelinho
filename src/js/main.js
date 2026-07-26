@@ -67,11 +67,13 @@ class Game {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         this.input.clearHeld();
+        this.sfx.stopAmbience();
         return;
       }
       this._last = performance.now();
       this.input.clearHeld();
       this.sfx.resume();
+      if (this.state === "playing") this.sfx.startAmbience();
     });
     window.addEventListener("resize", () => this._onResize());
 
@@ -95,6 +97,8 @@ class Game {
     this.player.standUp();
     this.input.requestLock();
     this.touch?.show();
+    this.sfx.resume();
+    this.sfx.startAmbience();
     this.sfx.open();
     if (this.input.mobile) {
       this.hud.showToast("Stick pra andar · arrasta a direita pra olhar · E pra falar", 3800);
