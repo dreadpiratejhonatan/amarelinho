@@ -28,25 +28,44 @@ function wirePublicForm() {
   const form = document.getElementById("suggest-form");
   if (!form) return;
   const msg = document.getElementById("suggest-msg");
+  const area = document.getElementById("suggest-body");
+  const count = document.getElementById("char-count");
+  const max = Number(area?.getAttribute("maxlength") || 2000);
+
+  const refreshCount = () => {
+    if (!count || !area) return;
+    count.textContent = String(Math.max(0, max - area.value.length));
+  };
+  area?.addEventListener("input", refreshCount);
+  refreshCount();
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = form.querySelector('button[type="submit"]');
-    const body = form.body.value.trim();
+    const body = (area?.value || form.body.value).trim();
     if (!body) {
-      showMsg(msg, "Escreve a sugestão.", false);
+      showMsg(msg, "Escreve do jeito que vier — só não deixa em branco.", false);
+      area?.focus();
       return;
     }
     btn.disabled = true;
+    btn.textContent = "Mandando…";
     try {
       await api("submit", {
         method: "POST",
         body: { body },
       });
       form.reset();
-      showMsg(msg, "Enviado. Valeu!", true);
+      refreshCount();
+      showMsg(
+        msg,
+        "Chegou na comanda. A gente lê, aprova e coloca no bar. Valeu demais!",
+        true
+      );
+      btn.textContent = "Mandar outra";
     } catch (err) {
-      showMsg(msg, err.message || "Não rolou enviar.", false);
+      showMsg(msg, err.message || "Não rolou enviar. Tenta de novo num instante.", false);
+      btn.textContent = "Mandar pro bar";
     } finally {
       btn.disabled = false;
     }

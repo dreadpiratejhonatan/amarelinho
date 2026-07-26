@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
-$today = ama_today();
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -9,33 +8,53 @@ $today = ama_today();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#c9a000" />
-  <title>Sugestões — Amarelinho</title>
+  <meta name="description" content="Manda sua ideia pro Amarelinho — melhoria, novidade ou correção. Anônimo e direto." />
+  <title>Manda uma ideia — Amarelinho</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <main class="wrap">
-    <p class="kicker">Caixa do boteco · <?= ama_h($today) ?></p>
-    <h1 class="brand">SUGESTÕES</h1>
-    <p class="lead">Escreve a ideia e manda. Sem nome, sem cadastro.</p>
+<body class="page-suggest">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="lamp" aria-hidden="true"></div>
 
-    <nav class="nav">
-      <a href="../">← Voltar pro bar</a>
-    </nav>
+  <main class="stage">
+    <a class="back" href="../">← Voltar pro bar</a>
 
-    <section class="card">
-      <form id="suggest-form">
-        <label>
-          Sua sugestão
-          <textarea name="body" maxlength="2000" required placeholder="O que mudar no Amarelinho?"></textarea>
-        </label>
-        <button class="btn" type="submit">Enviar</button>
-      </form>
+    <header class="hero">
+      <p class="hero__eyebrow">Noite no boteco</p>
+      <h1 class="hero__brand">AMARELINHO</h1>
+      <p class="hero__line">O que você mudaria aqui?</p>
+      <p class="hero__sub">
+        Ideia nova, melhoria, correção, algo que falta — escreve do jeito que vier.
+        Sem nome. A gente lê, aprova e sobe pro bar.
+      </p>
+    </header>
+
+    <form id="suggest-form" class="napkin" autocomplete="off">
+      <label class="napkin__label" for="suggest-body">Seu bilhete</label>
+      <textarea
+        id="suggest-body"
+        name="body"
+        maxlength="2000"
+        required
+        rows="8"
+        placeholder="Ex.: a calçada podia ficar mais clara…&#10;ou o Fabin podia ter mais falas…&#10;ou o botão E no celular às vezes não pega…"
+      ></textarea>
+      <div class="napkin__foot">
+        <span id="char-count" class="napkin__count" aria-live="polite">2000</span>
+        <button class="btn btn--send" type="submit">Mandar pro bar</button>
+      </div>
       <div id="suggest-msg" class="msg" role="status"></div>
-    </section>
+    </form>
+
+    <p class="reassure">
+      Fica entre a gente e a comanda. Nada de perfil, nada de WhatsApp —
+      só o que você quer ver no Amarelinho.
+    </p>
   </main>
+
   <script src="app.js"></script>
 </body>
 </html>

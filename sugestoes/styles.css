@@ -8,6 +8,8 @@
   --ok: #8fd48a;
   --warn: #f0c000;
   --bad: #e08070;
+  --paper: #fff1c4;
+  --paper-ink: #2a1c08;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,12 +24,191 @@ html, body {
     linear-gradient(165deg, #1a1206 0%, #2a1c08 50%, #100c04 100%);
 }
 
-body {
-  padding: 28px 18px 48px;
-}
-
+body { padding: 28px 18px 48px; }
 a { color: #ffd84a; }
 
+/* ——— Página pública: bilhete no boteco ——— */
+.page-suggest {
+  position: relative;
+  overflow-x: hidden;
+  padding: 0;
+  min-height: 100dvh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -10%, rgba(255, 200, 40, 0.28), transparent 55%),
+    radial-gradient(ellipse 70% 40% at 85% 90%, rgba(140, 50, 20, 0.35), transparent 50%),
+    linear-gradient(180deg, #2a1a06 0%, #140e06 42%, #0b0804 100%);
+}
+
+.page-suggest .glow {
+  position: fixed;
+  inset: -20% 10% auto;
+  height: 45vh;
+  background: radial-gradient(ellipse at center, rgba(255, 210, 60, 0.22), transparent 70%);
+  pointer-events: none;
+  animation: glowPulse 5.5s ease-in-out infinite;
+}
+
+.page-suggest .lamp {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  width: min(520px, 90vw);
+  height: 28vh;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255, 216, 74, 0.14), transparent 85%);
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+.stage {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding:
+    max(28px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(40px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  animation: stageIn 0.7s ease-out both;
+}
+
+@keyframes stageIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.back {
+  align-self: flex-start;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: rgba(255, 246, 214, 0.7);
+  margin-bottom: 28px;
+  touch-action: manipulation;
+  transition: color 0.2s ease;
+}
+
+.back:hover { color: #ffd84a; }
+
+.hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.hero__eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 246, 214, 0.55);
+  margin-bottom: 8px;
+  animation: stageIn 0.7s 0.08s ease-out both;
+}
+
+.hero__brand {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(56px, 16vw, 88px);
+  letter-spacing: 0.12em;
+  line-height: 0.9;
+  color: #ffd84a;
+  text-shadow:
+    0 3px 0 #7a5a00,
+    0 0 40px rgba(255, 200, 40, 0.35);
+  animation: stageIn 0.75s 0.12s ease-out both;
+}
+
+.hero__line {
+  margin-top: 18px;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(26px, 7vw, 36px);
+  letter-spacing: 0.04em;
+  color: var(--cream);
+  animation: stageIn 0.75s 0.2s ease-out both;
+}
+
+.hero__sub {
+  margin: 12px auto 0;
+  max-width: 28em;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(255, 246, 214, 0.78);
+  animation: stageIn 0.75s 0.28s ease-out both;
+}
+
+.napkin {
+  background:
+    linear-gradient(180deg, #fff6d6 0%, var(--paper) 55%, #f3e0a8 100%);
+  color: var(--paper-ink);
+  border-radius: 4px 18px 14px 10px;
+  padding: 22px 20px 18px;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  transform: rotate(-0.6deg);
+  animation: napkinIn 0.8s 0.22s ease-out both;
+  touch-action: manipulation;
+}
+
+@keyframes napkinIn {
+  from { opacity: 0; transform: rotate(-0.6deg) translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: rotate(-0.6deg) translateY(0) scale(1); }
+}
+
+.napkin:focus-within {
+  transform: rotate(0deg) scale(1.01);
+  transition: transform 0.25s ease;
+  box-shadow:
+    0 22px 48px rgba(0, 0, 0, 0.5),
+    0 0 0 2px rgba(255, 216, 74, 0.45);
+}
+
+.napkin__label {
+  display: block;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: rgba(42, 28, 8, 0.55);
+  margin-bottom: 8px;
+}
+
+.napkin__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.napkin__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(42, 28, 8, 0.4);
+  min-width: 3em;
+}
+
+.reassure {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 246, 214, 0.5);
+  max-width: 30em;
+  align-self: center;
+  animation: stageIn 0.8s 0.4s ease-out both;
+}
+
+/* ——— Layout aprovação ——— */
 .wrap {
   width: min(720px, 100%);
   margin: 0 auto;
@@ -76,7 +257,7 @@ label {
   color: rgba(255, 246, 214, 0.8);
 }
 
-input, textarea {
+input, textarea, select {
   display: block;
   width: 100%;
   margin-top: 6px;
@@ -177,15 +358,6 @@ input:focus, textarea:focus, select:focus {
   align-items: center;
 }
 
-select {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--cream);
-  font: inherit;
-  padding: 10px 12px;
-}
-
 .ticket {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -255,4 +427,82 @@ select {
   padding: 18px 4px;
   color: rgba(255, 246, 214, 0.55);
   font-size: 14px;
+}
+
+/* Bilhete: depois das regras genéricas de textarea */
+.page-suggest .napkin textarea {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(
+      transparent,
+      transparent 27px,
+      rgba(42, 28, 8, 0.08) 28px
+    );
+  color: var(--paper-ink);
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 28px;
+  padding: 0 2px 8px;
+  resize: vertical;
+  outline: none;
+  touch-action: manipulation;
+}
+
+.page-suggest .napkin textarea:focus {
+  outline: none;
+}
+
+.page-suggest .napkin textarea::placeholder {
+  color: rgba(42, 28, 8, 0.38);
+}
+
+.page-suggest .btn--send {
+  flex: 1;
+  margin-top: 0;
+  min-height: 52px;
+  font-size: 24px;
+  letter-spacing: 0.1em;
+  box-shadow: 0 5px 0 #7a5a00;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.page-suggest .btn--send:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 0 #7a5a00;
+}
+
+.page-suggest .btn--send:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #7a5a00;
+}
+
+.page-suggest .napkin .msg { margin-top: 14px; }
+
+.page-suggest .napkin .msg--ok {
+  background: rgba(60, 110, 50, 0.15);
+  border: 1px solid rgba(60, 110, 50, 0.35);
+  color: #245220;
+}
+
+.page-suggest .napkin .msg--err {
+  background: rgba(140, 40, 30, 0.12);
+  border: 1px solid rgba(140, 40, 30, 0.3);
+  color: #6a2418;
+}
+
+@media (max-width: 480px) {
+  .page-suggest .napkin {
+    transform: none;
+    border-radius: 14px;
+  }
+  .page-suggest .napkin:focus-within { transform: scale(1); }
+  .page-suggest .napkin textarea {
+    min-height: 220px;
+    font-size: 16px;
+  }
 }
