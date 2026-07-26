@@ -1,12 +1,12 @@
 <?php
 /**
- * Configuração da caixa de sugestões.
+ * Configuração da caixa de pitacos.
  * Altere ADMIN_PIN antes de compartilhar o link de aprovação.
  */
 return [
-  // PIN para /sugestoes/aprovacao.php — troque depois do primeiro deploy
+  // PIN para /pitacos/aprovacao.php — troque depois do primeiro deploy
   'admin_pin' => 'boteco',
-  // Fuso do “mesmo dia” (tickets agrupados por data)
+  // Fuso do “mesmo dia” (pitacos agrupados por data)
   'timezone' => 'America/Sao_Paulo',
   // Limite de envios por IP por hora
   'rate_limit_per_hour' => 12,

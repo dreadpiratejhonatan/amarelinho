@@ -55,7 +55,7 @@ try {
   if ($method === 'POST' && $action === 'submit') {
     $body = ama_read_json_body();
     if (!ama_rate_ok(ama_client_ip())) {
-      ama_json_response(['ok' => false, 'error' => 'Calma aí — muitas sugestões deste IP. Tenta de novo em uma hora.'], 429);
+      ama_json_response(['ok' => false, 'error' => 'Calma aí — muitos pitacos deste IP. Tenta de novo em uma hora.'], 429);
     }
     $ticket = ama_create_ticket((string) ($body['body'] ?? ''));
     unset($ticket['ip']);

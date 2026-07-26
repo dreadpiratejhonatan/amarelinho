@@ -6,6 +6,9 @@ release/
 .env
 .env.*
 assets/ref/
+pitacos/data/**
+!pitacos/data/.htaccess
+!pitacos/data/.gitkeep
 sugestoes/data/**
 !sugestoes/data/.htaccess
 !sugestoes/data/.gitkeep

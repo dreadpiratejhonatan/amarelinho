@@ -177,7 +177,7 @@ function ama_title_from_body(string $body, int $max): string
 {
   $line = trim(preg_split('/\n/', $body, 2)[0] ?? $body);
   $line = ama_clean_text($line, $max);
-  return $line !== '' ? $line : 'Sugestão';
+  return $line !== '' ? $line : 'Pitaco';
 }
 
 function ama_create_ticket(string $body): array
@@ -193,7 +193,7 @@ function ama_create_ticket(string $body): array
   $body = trim($body);
 
   if ($body === '') {
-    throw new InvalidArgumentException('Escreve a sugestão.');
+    throw new InvalidArgumentException('Manda o pitaco.');
   }
 
   $title = ama_title_from_body($body, (int) $cfg['max_title']);
@@ -267,34 +267,34 @@ function ama_compile_prompt(string $day, bool $approvedOnly = true): string
   ));
 
   $lines = [];
-  $lines[] = "Implemente as sugestões aprovadas do Amarelinho do dia {$day}.";
+  $lines[] = "Implemente os pitacos aprovados do Amarelinho do dia {$day}.";
   $lines[] = 'Site: https://jhonatanribeiro.com/amarelinho/';
   $lines[] = 'Trabalho em branch cursor/*, PR para develop, bump AMA_BUILD, npm run build, e deixe pronto para auto-merge/deploy.';
   $lines[] = 'Mantenha o visual do boteco (Bebas Neue / DM Sans / amarelo), touch controls e copy em português.';
   $lines[] = '';
   if ($picked === []) {
-    $lines[] = '(Nenhum ticket aprovado neste dia.)';
+    $lines[] = '(Nenhum pitaco aprovado neste dia.)';
     return implode("\n", $lines);
   }
 
-  $lines[] = 'Tickets aprovados (um por vez no mesmo dia — implemente todos abaixo):';
+  $lines[] = 'Pitacos aprovados (um por vez no mesmo dia — implemente todos abaixo):';
   $lines[] = '';
   foreach ($picked as $t) {
     $id = $t['id'] ?? '?';
-    $title = $t['title'] ?? 'Sugestão';
+    $title = $t['title'] ?? 'Pitaco';
     $body = trim((string) ($t['body'] ?? ''));
-    $lines[] = "## Ticket {$id} — {$title}";
+    $lines[] = "## Pitaco {$id} — {$title}";
     $lines[] = $body;
     $lines[] = '';
   }
-  $lines[] = 'Ao terminar, marque o contexto desses tickets como feitos no fluxo de sugestões se fizer sentido.';
+  $lines[] = 'Ao terminar, marque esses pitacos como feitos no fluxo de aprovação se fizer sentido.';
   return implode("\n", $lines);
 }
 
 function ama_session_start(): void
 {
   if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_name('ama_sugestoes');
+    session_name('ama_pitacos');
     session_start([
       'cookie_httponly' => true,
       'cookie_samesite' => 'Lax',
