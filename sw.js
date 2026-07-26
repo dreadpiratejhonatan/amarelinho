@@ -1,10 +1,9 @@
-const CACHE = "amarelinho-v21";
-const ASSETS = ["./", "./index.html", "./game.js", "./styles/styles.css", "./manifest.webmanifest"];
+/* Bump CACHE together with AMA_BUILD in index.html / scripts/build.mjs */
+const CACHE = "amarelinho-v25";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS).catch(() => {})).then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then(() => undefined));
 });
 
 self.addEventListener("activate", (event) => {
@@ -15,20 +14,21 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/** Network-first so deploys (v22→v25…) chegam no celular sem ficar preso no cache velho. */
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((res) => {
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok && (event.request.mode === "navigate" || /\.(?:js|css|webmanifest)$/.test(url.pathname) || url.pathname.endsWith("/"))) {
           const copy = res.clone();
-          if (res.ok && event.request.url.startsWith(self.location.origin)) {
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
   );
 });

@@ -6,3 +6,6 @@ release/
 .env
 .env.*
 assets/ref/
+sugestoes/data/**
+!sugestoes/data/.htaccess
+!sugestoes/data/.gitkeep

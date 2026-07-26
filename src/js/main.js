@@ -195,6 +195,8 @@ class Game {
     set("btn-achievements", "achievements");
     set("btn-share", "share");
     set("btn-photo", "photo");
+    set("btn-suggest", "suggest");
+    set("btn-suggest-menu", "suggestMenu");
   }
 
   _wireSettingsControls() {
@@ -583,6 +585,7 @@ class Game {
   _talkTo(def) {
     this.input.exitLock();
     this.state = "dialogue";
+    this.hud.setPrompt("");
     this.touch?.hide();
     const mood = this.progress.mood(def.id);
     const greet =
@@ -648,6 +651,7 @@ class Game {
   _talkToRegular(def) {
     this.input.exitLock();
     this.state = "dialogue";
+    this.hud.setPrompt("");
     this.touch?.hide();
     const idx = (this.progress.data.nightStoryIndex || 0) % def.stories.length;
     const story = def.stories[idx];
@@ -699,6 +703,7 @@ class Game {
   _orderAtCounter() {
     this.input.exitLock();
     this.state = "dialogue";
+    this.hud.setPrompt("");
     this.touch?.hide();
     const total = this.bill.total();
     const unpaid = this.bill.count() > 0 && !this.bill.paid;

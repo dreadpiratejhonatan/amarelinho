@@ -188,9 +188,13 @@ html, body {
   border: none;
   background: transparent;
   color: rgba(255, 246, 214, 0.65);
+  font: inherit;
   font-size: 14px;
   cursor: pointer;
   text-decoration: underline;
+  text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 216, 74, 0.2);
 }
 
 .settings__card,
@@ -373,13 +377,14 @@ body.is-touch .hud__hint {
 .dialogue {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 50;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 24px;
   background: linear-gradient(to top, rgba(8, 5, 0, 0.72), transparent 55%);
   pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .dialogue[hidden] {
@@ -418,7 +423,10 @@ body.is-touch .hud__hint {
 }
 
 .dialogue__choices button,
+.dialogue__choice,
 .dialogue__next {
+  position: relative;
+  z-index: 2;
   pointer-events: auto;
   appearance: none;
   border: 1px solid rgba(255, 216, 74, 0.35);
@@ -434,10 +442,12 @@ body.is-touch .hud__hint {
   transition: background 0.15s ease, border-color 0.15s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: rgba(255, 216, 74, 0.25);
-  min-height: 44px;
+  min-height: 48px;
+  width: 100%;
 }
 
 .dialogue__choices button:hover,
+.dialogue__choice:hover,
 .dialogue__next:hover {
   background: rgba(255, 216, 74, 0.18);
   border-color: #ffd84a;
@@ -539,6 +549,16 @@ body.is-touch .hud__hint {
   box-shadow: 0 2px 0 #7a5a00;
 }
 
+.menu__link {
+  display: inline-block;
+  margin-top: 14px;
+  color: rgba(255, 216, 74, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  touch-action: manipulation;
+}
+
 .menu__cast {
   margin-top: 20px;
   font-size: 12px;
@@ -554,7 +574,12 @@ body.is-touch .hud__hint {
   pointer-events: none;
 }
 
-.touch[hidden] { display: none !important; }
+.touch[hidden],
+body.touch-hidden .touch,
+body.is-dialogue .touch {
+  display: none !important;
+  pointer-events: none !important;
+}
 
 /* Olhar: quase tela inteira; stick/E ficam por cima (z-index) */
 .touch__look {
@@ -638,13 +663,31 @@ body.is-touch .prompt {
 
 body.is-touch .dialogue {
   padding: 12px 12px max(18px, env(safe-area-inset-bottom));
-  z-index: 35;
+  z-index: 60;
+}
+
+body.is-touch .dialogue__panel {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 body.is-touch .dialogue__choices button,
+body.is-touch .dialogue__choice,
 body.is-touch .dialogue__next {
-  font-size: 15px;
-  padding: 14px 14px;
+  font-size: 16px;
+  padding: 16px 14px;
+  min-height: 52px;
+}
+
+/* Durante o diálogo, HUD não intercepta toques nas escolhas */
+body.is-dialogue .hud__pause {
+  pointer-events: auto;
+}
+body.is-dialogue .prompt,
+body.is-dialogue .toast,
+body.is-dialogue .hud__guide {
+  display: none !important;
 }
 
 body.is-touch .hud__pause {
