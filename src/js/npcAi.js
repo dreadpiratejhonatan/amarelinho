@@ -27,6 +27,19 @@ export const NPC_WAYPOINTS = {
   ],
 };
 
+const CHAT_LINES = [
+  "E aí!",
+  "Gelada?",
+  "Gol!",
+  "Ô loco…",
+  "Tá lotado",
+  "Mais uma?",
+  "Saúde!",
+  "Boa noite",
+  "Chama o Ney",
+  "Que batida!",
+];
+
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -46,8 +59,11 @@ export class NpcAgent {
     this.timer = 0.4 + Math.random() * 1.5;
     this.target = null;
     this.partner = null;
+    this.seat = null;
     this._phase = Math.random() * Math.PI * 2;
     this._cooldown = 1 + Math.random() * 2;
+    this._speechT = 0;
+    this._serveJob = null;
   }
 
   get x() {
@@ -57,14 +73,22 @@ export class NpcAgent {
     return this.mesh.position.z;
   }
 
-  _setBubble(on) {
+  _setBubble(on, text) {
     const b = this.mesh.userData.chatBubble;
-    if (b) b.visible = !!on;
+    if (!b) return;
+    b.visible = !!on;
+    if (on && text && b.userData.setText) b.userData.setText(text);
+  }
+
+  say(text, duration = 2.2) {
+    this._speechT = duration;
+    this._setBubble(true, text);
   }
 
   _floorBob(extra = 0) {
     const fy = floorHeightAt(this.x, this.z);
-    this.mesh.position.y = fy + extra;
+    const sitY = this.state === "sit" ? 0.35 : 0;
+    this.mesh.position.y = fy + sitY + extra;
   }
 
   _pickWaypoint(agents) {
@@ -108,12 +132,13 @@ export class NpcAgent {
     this.partner = other;
     this.timer = duration;
     this.target = null;
-    this._setBubble(true);
+    const line = pick(CHAT_LINES);
+    this._setBubble(true, line);
     other.state = "chat";
     other.partner = this;
     other.timer = duration;
     other.target = null;
-    other._setBubble(true);
+    other._setBubble(true, pick(CHAT_LINES));
     other._cooldown = 4 + Math.random() * 4;
     this._cooldown = 4 + Math.random() * 4;
   }
@@ -125,9 +150,102 @@ export class NpcAgent {
     this.timer = 0.3 + Math.random() * 1.2;
   }
 
+  assignServe(job) {
+    if (this.kind !== "waiter" || this.state === "serve") return false;
+    this._serveJob = job;
+    this.state = "serve";
+    this.target = { x: job.x, z: job.z };
+    this.timer = 12;
+    this.say("Já levo!", 1.6);
+    return true;
+  }
+
+  trySit(world) {
+    if (this.kind !== "customer" || !world.claimSeat) return false;
+    const seat = world.claimSeat(this);
+    if (!seat) return false;
+    this.seat = seat;
+    this.state = "gotoSit";
+    this.target = { x: seat.position.x, z: seat.position.z };
+    this.timer = 10;
+    return true;
+  }
+
+  leaveSeat(world) {
+    if (this.seat && world.releaseSeat) world.releaseSeat(this.seat, this);
+    this.seat = null;
+  }
+
+  cheer() {
+    if (this.state === "sit" || this.state === "idle" || this.state === "chat") {
+      this.say(Math.random() < 0.5 ? "GOOL!" : "Ééé!", 2.4);
+    }
+  }
+
   update(dt, agents, world) {
     this._cooldown = Math.max(0, this._cooldown - dt);
     this.timer -= dt;
+
+    if (this._speechT > 0) {
+      this._speechT -= dt;
+      if (this._speechT <= 0 && this.state !== "chat") this._setBubble(false);
+    }
+
+    if (this.state === "sit") {
+      this._floorBob(Math.sin(performance.now() * 0.002 + this._phase) * 0.008);
+      if (this.timer <= 0) {
+        this.leaveSeat(world);
+        this.state = "idle";
+        this.timer = 1 + Math.random() * 2;
+      } else if (Math.random() < 0.003) {
+        this.say(pick(CHAT_LINES), 2);
+      }
+      this._syncInteractable();
+      return;
+    }
+
+    if (this.state === "gotoSit") {
+      if (!this.target || this.timer <= 0) {
+        this.leaveSeat(world);
+        this.state = "idle";
+        this.timer = 1;
+        this._syncInteractable();
+        return;
+      }
+      this._walkToward(dt, agents, world);
+      if (dist2(this.x, this.z, this.target.x, this.target.z) < 0.28) {
+        this.state = "sit";
+        this.timer = 18 + Math.random() * 35;
+        this.target = null;
+        this.mesh.position.x = this.seat.position.x;
+        this.mesh.position.z = this.seat.position.z;
+        this._floorBob(0);
+        this.say(pick(["Ahh…", "Gelada!", "Boa mesa"]), 2);
+      }
+      this._syncInteractable();
+      return;
+    }
+
+    if (this.state === "serve") {
+      if (!this.target || this.timer <= 0) {
+        this.state = "idle";
+        this._serveJob = null;
+        this.timer = 1;
+        this._syncInteractable();
+        return;
+      }
+      this._walkToward(dt, agents, world);
+      if (dist2(this.x, this.z, this.target.x, this.target.z) < 0.45) {
+        this.say("Pronto!", 2);
+        this._serveJob?.onArrive?.();
+        this._serveJob = null;
+        this.state = "idle";
+        this.timer = 1.2;
+        this.target = null;
+      }
+      this._syncInteractable();
+      return;
+    }
 
     if (this.state === "chat") {
       if (this.partner) this._faceToward(this.partner.x, this.partner.z, dt);
@@ -144,11 +262,20 @@ export class NpcAgent {
     if (this.state === "idle") {
       this._floorBob(Math.sin(performance.now() * 0.0025 + this._phase) * 0.015);
       if (this.timer <= 0) {
+        if (
+          this.kind === "customer" &&
+          this._cooldown <= 0 &&
+          Math.random() < 0.35 &&
+          this.trySit(world)
+        ) {
+          this._syncInteractable();
+          return;
+        }
         if (this._cooldown <= 0 && Math.random() < 0.45) {
           let nearest = null;
           let nearestD = 1.55;
           for (const a of agents) {
-            if (a === this || a.state === "chat") continue;
+            if (a === this || a.state === "chat" || a.state === "sit") continue;
             if (a._cooldown > 0) continue;
             const d = dist2(this.x, this.z, a.x, a.z);
             if (d < nearestD) {
@@ -177,25 +304,39 @@ export class NpcAgent {
       return;
     }
 
-    const dx = this.target.x - this.x;
-    const dz = this.target.z - this.z;
-    const d = Math.hypot(dx, dz);
-    if (d < 0.18 || this.timer <= 0) {
+    this._walkToward(dt, agents, world);
+
+    if (dist2(this.x, this.z, this.target.x, this.target.z) < 0.18 || this.timer <= 0) {
       this.state = "idle";
       this.timer = 0.8 + Math.random() * 2.2;
       this.target = null;
       this._floorBob(0);
-      this._syncInteractable();
-      return;
     }
 
+    if (this._cooldown <= 0 && Math.random() < 0.012) {
+      for (const a of agents) {
+        if (a === this || a.state === "chat" || a.state === "sit" || a._cooldown > 0) continue;
+        if (dist2(this.x, this.z, a.x, a.z) < 1.25) {
+          this._beginChat(a, 2.5 + Math.random() * 2.5);
+          break;
+        }
+      }
+    }
+
+    this._syncInteractable();
+  }
+
+  _walkToward(dt, agents, world) {
+    if (!this.target) return;
+    const dx = this.target.x - this.x;
+    const dz = this.target.z - this.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.001) return;
     const step = Math.min(d, this.speed * dt);
-    const nx = this.x + (dx / d) * step;
-    const nz = this.z + (dz / d) * step;
-    const pos = new THREE.Vector3(nx, 0, nz);
+    const pos = new THREE.Vector3(this.x + (dx / d) * step, 0, this.z + (dz / d) * step);
     world.resolveCollision(pos, 0.32);
     for (const a of agents) {
-      if (a === this) continue;
+      if (a === this || a.state === "sit") continue;
       const sep = dist2(pos.x, pos.z, a.x, a.z);
       if (sep < 0.55 && sep > 0.001) {
         const push = (0.55 - sep) * 0.5;
@@ -207,18 +348,6 @@ export class NpcAgent {
     this.mesh.position.z = pos.z;
     this._floorBob(Math.abs(Math.sin(performance.now() * 0.012 + this._phase)) * 0.04);
     this._faceToward(this.target.x, this.target.z, dt);
-
-    if (this._cooldown <= 0 && Math.random() < 0.012) {
-      for (const a of agents) {
-        if (a === this || a.state === "chat" || a._cooldown > 0) continue;
-        if (dist2(this.x, this.z, a.x, a.z) < 1.25) {
-          this._beginChat(a, 2.5 + Math.random() * 2.5);
-          break;
-        }
-      }
-    }
-
-    this._syncInteractable();
   }
 
   _syncInteractable() {

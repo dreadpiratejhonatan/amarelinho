@@ -1,0 +1,13 @@
+---
+description: Cursor mobile / Cloud Agent → auto-merge → HostGator deploy (same as snow)
+alwaysApply: true
+---
+
+# Mobile + deploy pipeline
+
+This repo mirrors Neve Selvagem (`snow`) for phone editing:
+
+- Cloud Agent work must land on a **`cursor/*`** branch with a PR to **`develop`**.
+- **Auto-merge Cursor PRs** merges after CI and dispatches **Deploy HostGator** + **Deploy GitHub Pages**.
+- When the user asks to ship / deploy / “manda pro ar”, finish with PR (cloud) or commit+push to `develop` (local), bump `AMA_BUILD`, and confirm Actions.
+- See `AGENTS.md` and `docs/MOBILE-AUTO-PROD.md`.

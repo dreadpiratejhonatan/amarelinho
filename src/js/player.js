@@ -29,6 +29,7 @@ export class Player {
     if (!this.sitting) return;
     this.sitting = false;
     if (this.seat) {
+      if (this.seat.claimedBy === "player") this.seat.claimedBy = null;
       const away = new THREE.Vector3().subVectors(this.position, this.seat.lookAt);
       away.y = 0;
       if (away.lengthSq() < 0.01) away.set(0, 0, 1);
@@ -51,11 +52,13 @@ export class Player {
     this.velY = 0;
   }
 
-  update(dt, input, canMove, canLook = canMove) {
+  update(dt, input, canMove, canLook = canMove, lookOpts = null) {
     const look = input.consumeLook();
     if (canLook || this.sitting) {
-      this.yaw -= look.dx * CONFIG.mouseSens;
-      this.pitch -= look.dy * CONFIG.mouseSens;
+      const sens = (lookOpts?.sens ?? 1) * CONFIG.mouseSens;
+      const inv = lookOpts?.invert ? -1 : 1;
+      this.yaw -= look.dx * sens;
+      this.pitch -= look.dy * sens * inv;
       this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch));
     }
 

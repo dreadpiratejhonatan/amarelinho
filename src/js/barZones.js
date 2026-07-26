@@ -10,6 +10,9 @@ function mat(color, opts = {}) {
     metalness: opts.metalness ?? 0.05,
     emissive: opts.emissive ?? 0x000000,
     emissiveIntensity: opts.emissiveIntensity ?? 0,
+    transparent: opts.transparent ?? false,
+    opacity: opts.opacity ?? 1,
+    depthWrite: opts.transparent ? false : true,
   });
 }
 
@@ -221,6 +224,24 @@ export function buildBarFromPlan(world) {
     radius: 1.9,
   });
 
+  // Jukebox no canto azul
+  const jx = bl.x1 - 1.2;
+  const jz = bl.z0 + 1.4;
+  const juke = box(0.7, 1.35, 0.55, 0x1a1a22, { metalness: 0.35, roughness: 0.45 });
+  juke.position.set(jx, 0.7, jz);
+  world.group.add(juke);
+  const jukeGlow = box(0.55, 0.35, 0.08, 0xffd84a, { emissive: 0xffaa00, emissiveIntensity: 0.9 });
+  jukeGlow.position.set(jx, 1.15, jz + 0.28);
+  world.group.add(jukeGlow);
+  addCol(world, jx, jz, 0.85, 0.7);
+  world.interactables.push({
+    kind: "jukebox",
+    label: "Jukebox — trocar estação",
+    position: new THREE.Vector3(jx, 1.1, jz),
+    radius: 1.6,
+  });
+  world._jukeboxLight = jukeGlow;
+
   // —— Vermelho: cozinha ——
   const k = LAYOUT.kitchen;
   const kC = rectCenter(k);
@@ -245,6 +266,35 @@ export function buildBarFromPlan(world) {
   const chapaGlow = box(1.5, 0.02, 0.6, 0xff6622, { emissive: 0xff4400, emissiveIntensity: 0.8 });
   chapaGlow.position.set(k.x0 + 2.4, 1.02, kC.z);
   world.group.add(chapaGlow);
+  // Fumaça da chapa (partículas leves)
+  world._smoke = world._smoke || [];
+  for (let i = 0; i < 10; i++) {
+    const p = box(0.08 + Math.random() * 0.06, 0.08, 0.08, 0xaaaaaa, {
+      transparent: true,
+      opacity: 0.22,
+      roughness: 1,
+    });
+    p.position.set(
+      k.x0 + 2.4 + (Math.random() - 0.5) * 0.9,
+      1.15 + Math.random() * 0.4,
+      kC.z + (Math.random() - 0.5) * 0.4
+    );
+    p.userData.smoke = {
+      ox: p.position.x,
+      oz: p.position.z,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.25 + Math.random() * 0.35,
+    };
+    world.group.add(p);
+    world._smoke.push(p);
+  }
+  // Hambúrguer na chapa
+  const patty = box(0.28, 0.05, 0.28, 0x4a2a12);
+  patty.position.set(k.x0 + 2.2, 1.08, kC.z);
+  world.group.add(patty);
+  const bun = box(0.3, 0.06, 0.3, 0xe8b060);
+  bun.position.set(k.x0 + 2.55, 1.1, kC.z + 0.1);
+  world.group.add(bun);
 
   // Fogão
   const stove = box(1.2, 0.95, 0.8, 0x1a1a1e, { metalness: 0.4, roughness: 0.45 });

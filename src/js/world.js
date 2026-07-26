@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { WAITERS, buildWaiterMesh, randomCustomerDef, buildCustomerMesh } from "./npcs.js";
+import { WAITERS, REGULAR, buildWaiterMesh, buildCustomerMesh, randomCustomerDef } from "./npcs.js";
 import { NpcAgent } from "./npcAi.js";
 import { LAYOUT, floorHeightAt } from "./layout.js";
 import { buildBarFromPlan, placePlanTables } from "./barZones.js";
@@ -238,9 +238,15 @@ export class World {
     this.tvs = [];
     this.cars = [];
     this._blinkLights = [];
+    this._smoke = [];
+    this.onGoal = null;
+    this.onTvEvent = null;
+    this.nightPhase = 0; // 0 early → 1 late
     this.group = new THREE.Group();
     this.scene.add(this.group);
     this._awningLights = [];
+    this._rain = null;
+    this._sessionT = 0;
     this._build();
   }
 
@@ -252,7 +258,9 @@ export class World {
     this._furniture();
     this._streetProps();
     this._spawnWaiters();
+    this._spawnRegular();
     this._spawnCustomers();
+    this._buildRain();
   }
 
   getFloorHeight(x, z) {
@@ -538,6 +546,7 @@ export class World {
       position: new THREE.Vector3(x + 0.65, floorY + 0.55, z),
       lookAt: new THREE.Vector3(x, floorY + 1.3, z),
       radius: 1.05,
+      claimedBy: null,
     });
     this.seats.push({
       kind: "seat",
@@ -545,6 +554,7 @@ export class World {
       position: new THREE.Vector3(x - 0.65, floorY + 0.55, z),
       lookAt: new THREE.Vector3(x, floorY + 1.3, z),
       radius: 1.05,
+      claimedBy: null,
     });
 
     const ketchup = meshCyl(0.035, 0.04, 0.16, 0xcc2020);
@@ -747,9 +757,115 @@ export class World {
     }
   }
 
-  updateNpcs(dt) {
+  claimSeat(agent) {
+    const free = this.seats.filter((s) => !s.claimedBy);
+    if (!free.length) return null;
+    const seat = free[Math.floor(Math.random() * free.length)];
+    seat.claimedBy = agent;
+    return seat;
+  }
+
+  releaseSeat(seat, agent) {
+    if (seat && seat.claimedBy === agent) seat.claimedBy = null;
+  }
+
+  /** Envia um garçom até a mesa do jogador (comanda). */
+  dispatchServe(job) {
+    const waiters = this.npcAgents.filter(
+      (a) => a.kind === "waiter" && a.state !== "serve" && a.interactable?.id !== "carlinhos"
+    );
+    if (!waiters.length) return false;
+    const w = waiters[Math.floor(Math.random() * waiters.length)];
+    return w.assignServe(job);
+  }
+
+  cheerCrowd() {
+    for (const a of this.npcAgents) {
+      if (Math.random() < 0.55) a.cheer();
+    }
+  }
+
+  bindTvGoals(cb) {
+    this.onGoal = cb;
+    for (const tv of this.tvs) tv.setOnGoal?.(cb);
+  }
+
+  bindTvEvents(cb) {
+    this.onTvEvent = cb;
+    for (const tv of this.tvs) {
+      tv.setOnEvent?.(cb);
+      if (!tv.setOnEvent) tv.setOnGoal?.((team) => cb?.({ type: "goal", team }));
+    }
+  }
+
+  _spawnRegular() {
+    const def = REGULAR;
+    const mesh = buildCustomerMesh(def);
+    const x = -9.2;
+    const z = 3.2;
+    const fy = floorHeightAt(x, z);
+    mesh.position.set(x, fy, z);
+    mesh.rotation.y = 0.6;
+    this.group.add(mesh);
+    const interactable = {
+      kind: "regular",
+      id: def.id,
+      label: `Falar com ${def.name}`,
+      position: new THREE.Vector3(x, fy + 1.4, z),
+      radius: 1.7,
+      def,
+    };
+    this.interactables.push(interactable);
+    this.npcAgents.push(
+      new NpcAgent({
+        mesh,
+        kind: "customer",
+        zones: ["sidewalk", "green"],
+        speed: 0.7,
+        interactable,
+      })
+    );
+  }
+
+  _buildRain() {
+    const count = 400;
+    const geo = new THREE.BoxGeometry(0.02, 0.18, 0.02);
+    const matRain = new THREE.MeshBasicMaterial({
+      color: 0xaaccff,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    });
+    const mesh = new THREE.InstancedMesh(geo, matRain, count);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    const dummy = new THREE.Object3D();
+    const drops = [];
+    for (let i = 0; i < count; i++) {
+      const drop = {
+        x: -14 + Math.random() * 28,
+        y: 2 + Math.random() * 8,
+        z: 2 + Math.random() * 12,
+        vy: 6 + Math.random() * 5,
+      };
+      drops.push(drop);
+      dummy.position.set(drop.x, drop.y, drop.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    this.group.add(mesh);
+    this._rain = { mesh, drops, dummy, on: true };
+  }
+
+  updateNpcs(dt, playerPos = null) {
     for (const agent of this.npcAgents) {
       agent.update(dt, this.npcAgents, this);
+      // LOD simples: esconde clientes longe
+      if (playerPos && agent.kind === "customer" && agent.mesh) {
+        const d = playerPos.distanceTo(agent.mesh.position);
+        agent.mesh.visible = d < 22;
+      }
     }
   }
 
@@ -762,7 +878,10 @@ export class World {
     for (const tv of this.tvs) tv.draw(now);
   }
 
-  updateNight(dt, now) {
+  updateNight(dt, now, exposureBase = 1.35) {
+    this._sessionT += dt;
+    this.nightPhase = Math.min(1, this._sessionT / 420);
+
     for (const car of this.cars) {
       car.mesh.position.x += car.speed * dt;
       if (car.speed > 0 && car.mesh.position.x > car.maxX) car.mesh.position.x = car.minX;
@@ -771,12 +890,67 @@ export class World {
     }
     for (const b of this._blinkLights) {
       const flick = 0.85 + Math.sin(now * 0.004 + b.phase) * 0.08 + Math.sin(now * 0.013 + b.phase) * 0.05;
-      b.light.intensity = b.base * flick;
+      b.light.intensity = b.base * flick * (1 - this.nightPhase * 0.15);
     }
     for (const l of this._awningLights) {
       if (!l.userData._base) l.userData._base = l.intensity;
       l.intensity = l.userData._base * (0.92 + Math.sin(now * 0.003 + l.position.x) * 0.06);
     }
+    const cycle = this.nightPhase;
+    if (this.scene.fog) {
+      this.scene.fog.near = 22 + cycle * 10;
+      this.scene.fog.far = 58 + cycle * 18;
+      this.scene.fog.color?.setRGB?.(0.07 + cycle * 0.02, 0.09, 0.14 - cycle * 0.03);
+    }
+    if (this.scene.background?.isColor) {
+      this.scene.background.setRGB(0.07 - cycle * 0.02, 0.09 - cycle * 0.02, 0.16 - cycle * 0.04);
+    }
+    for (const p of this._smoke) {
+      const s = p.userData.smoke;
+      if (!s) continue;
+      p.position.y += s.speed * dt;
+      p.position.x = s.ox + Math.sin(now * 0.002 + s.phase) * 0.12;
+      p.position.z = s.oz + Math.cos(now * 0.0015 + s.phase) * 0.08;
+      const mat = p.material;
+      if (mat) mat.opacity = 0.08 + Math.max(0, 1.8 - p.position.y) * 0.12;
+      if (p.position.y > 2.4) {
+        p.position.y = 1.12;
+        mat.opacity = 0.25;
+      }
+    }
+    // Fim de noite: clientes vão embora aos poucos
+    if (this.nightPhase > 0.72) {
+      for (const a of this.npcAgents) {
+        if (a.kind !== "customer" || a.state === "leave") continue;
+        if (Math.random() < 0.002) {
+          a.state = "walk";
+          a.target = { x: -2 + Math.random() * 4, z: 12 };
+          a.timer = 20;
+          a.say?.("Já vou…", 1.5);
+        }
+      }
+    }
+    if (this._rain?.on) {
+      const { mesh, drops, dummy } = this._rain;
+      for (let i = 0; i < drops.length; i++) {
+        const d = drops[i];
+        d.y -= d.vy * dt;
+        if (d.y < 0.05) {
+          d.y = 4 + Math.random() * 6;
+          d.x = -14 + Math.random() * 28;
+          d.z = 2 + Math.random() * 12;
+        }
+        dummy.position.set(d.x, d.y, d.z);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.material.opacity = 0.2 + Math.sin(now * 0.001) * 0.08;
+    }
+    if (this._jukeboxLight) {
+      this._jukeboxLight.material.emissiveIntensity = 0.6 + Math.sin(now * 0.008) * 0.4;
+    }
+    return exposureBase * (1 - this.nightPhase * 0.12);
   }
 
   resolveCollision(pos, radius) {
@@ -802,6 +976,7 @@ export class World {
     let bestD = Infinity;
     const all = [...this.interactables, ...this.seats];
     for (const it of all) {
+      if (it.kind === "seat" && it.claimedBy && it.claimedBy !== "player") continue;
       const d = pos.distanceTo(it.position);
       if (d < it.radius && d < bestD) {
         best = it;

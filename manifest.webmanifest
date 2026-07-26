@@ -1,0 +1,20 @@
+{
+  "name": "Amarelinho — Noite no boteco",
+  "short_name": "Amarelinho",
+  "description": "Uma noite no boteco em 3D. Converse, peça e sente no Amarelinho das Batidas.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0a05",
+  "theme_color": "#c9a000",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23c9a000'/%3E%3Ctext y='.9em' font-size='70' x='12'%3E%F0%9F%8D%BA%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

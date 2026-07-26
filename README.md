@@ -45,6 +45,9 @@ Abra http://127.0.0.1:5174/
 | --- | --- |
 | `develop` | push → CI + **FTP HostGator** + Pages |
 | `main` | estável + Pages |
+| `cursor/*` | Cloud Agent (celular) → auto-merge na `develop` → deploy |
+
+**Celular (Cursor Cloud Agent):** mesmo fluxo do Neve Selvagem — prompt no app → PR `cursor/*` → auto-merge → HostGator. Guia: [`docs/MOBILE-AUTO-PROD.md`](docs/MOBILE-AUTO-PROD.md) · [`AGENTS.md`](AGENTS.md)
 
 Detalhes e secrets: [`docs/DEPLOY.md`](docs/DEPLOY.md)
 

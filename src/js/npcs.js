@@ -25,6 +25,11 @@ export const WAITERS = [
         "Cerveja? Claro. Mais alguma coisa ou só isso mesmo?",
         "Já anotei. Não precisa agradecer.",
       ],
+      story: [
+        "O jogo na TV? Se o Amarelinho perder eu finjo que não vi.",
+        "Já vi cliente pedir batida especial e pedir outra em seguida. Sem vergonha.",
+      ],
+      tipThanks: ["…obrigado. Raro.", "Hm. Valeu."],
     },
   },
   {
@@ -50,6 +55,11 @@ export const WAITERS = [
         "Pode deixar comigo! Já já chega geladinha.",
         "Boa escolha! Vou buscar pra você.",
       ],
+      story: [
+        "Quando a TV dá gol, o bar inteiro pula — até o Toninho quase sorri.",
+        "Minha teoria: quem pede porção faz amigo. Quem pede água… também, mas demora mais.",
+      ],
+      tipThanks: ["Valeu demais, campeão!", "Gorjeta? Você é o cara!"],
     },
   },
   {
@@ -75,6 +85,11 @@ export const WAITERS = [
         "Vou cuidar disso com carinho. Um minutinho.",
         "Já anotei, meu filho. Pode ficar tranquilo.",
       ],
+      story: [
+        "Essa calçada já viu chuva, sol e muita conversa. O amarelo das paredes não murcha.",
+        "Seu Zé conta o mesmo causo há anos — e a gente ainda ri.",
+      ],
+      tipThanks: ["Que Deus te abençoe.", "Obrigado, meu filho."],
     },
   },
   {
@@ -100,6 +115,11 @@ export const WAITERS = [
         "Fechado. Já levo.",
         "Uma gelada saindo. Segura aí.",
       ],
+      story: [
+        "Jukebox no canto azul — se a batida falhar, culpa o cabo, não o Val.",
+        "Calabresa acebolada e jogo na TV. Receita de noite boa.",
+      ],
+      tipThanks: ["Valeu.", "Fechou. Agradeço."],
     },
   },
   {
@@ -125,6 +145,11 @@ export const WAITERS = [
         "Já peço pro pessoal da cozinha. Já já chega!",
         "Pode deixar com o velho Ney.",
       ],
+      story: [
+        "Eu vi o primeiro placar dessa TV. Era tubo. Hoje é pixel, mas o grito é o mesmo.",
+        "Se chover na calçada, a mesa coberta vira ouro. Sempre foi assim.",
+      ],
+      tipThanks: ["Ô, obrigado, meu amigo!", "Você tem coração bom."],
     },
   },
   {
@@ -152,9 +177,46 @@ export const WAITERS = [
         "Gelada eu não carrego — mas a porção eu resolvo.",
         "Anota aí… fogão a mil. Já já sai.",
       ],
+      story: [
+        "Torresmo, bolinho, calabresa — a chapa não dorme. Eu também não.",
+        "O cheiro sobe pro salão elevado. Marketing gratuito.",
+      ],
+      tipThanks: ["Valeu, brother.", "Gorjeta na cozinha? Raro. Obrigado."],
     },
   },
 ];
+
+/** Cliente fixo — causos diferentes a cada noite. */
+export const REGULAR = {
+  id: "ze",
+  name: "Seu Zé",
+  skin: 0x8d5524,
+  hair: 0xf2f2f0,
+  hairStyle: "baldish",
+  face: "kind",
+  height: 0.95,
+  shirt: 0x3a5a3a,
+  pants: 0x2a2a30,
+  stories: [
+    "Uma vez pedi batida especial e o Fabin trouxe duas. Disse que era promoção. Mentira — era amizade.",
+    "Choveu tanto que a calçada virou rio. A gente pediu porção e esperou o dilúvio passar.",
+    "O Carlinhos jura que o boné é amuleto. Eu juro que é falta de penteado.",
+    "Vi o Amarelinho virar o jogo no último minuto. O bar tremeu. Até o Toninho bateu palma.",
+    "Seu Oliveira me ensinou: divide a porção, multiplica a conversa.",
+  ],
+  lines: {
+    greet: [
+      "Ô, chega mais. Quer ouvir um causo?",
+      "Boa noite. Eu sou o Zé — freguês de carteirinha.",
+      "Senta um pouco. História boa não cobra entrada.",
+    ],
+    chat: [
+      "Tô aqui quase toda noite. O amarelo das paredes me acalma.",
+      "A jukebox às vezes falha. A conversa, nunca.",
+    ],
+    order: ["Eu já pedi. Agora é só acompanhar o jogo."],
+  },
+};
 
 const CUSTOMER_NAMES = [
   "João", "Maria", "Pedro", "Ana", "Lucas", "Bia", "Rafa", "Ju", "Diego", "Cami",
@@ -224,24 +286,31 @@ function makeNametag(name) {
 
 function makeChatBubble() {
   const canvas = document.createElement("canvas");
-  canvas.width = 128;
+  canvas.width = 160;
   canvas.height = 64;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "rgba(255, 246, 214, 0.92)";
-  ctx.fillRect(12, 8, 104, 40);
-  ctx.fillStyle = "#1a1408";
-  ctx.font = "bold 28px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("…", 64, 30);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })
   );
-  sprite.scale.set(0.55, 0.28, 1);
+  sprite.scale.set(0.7, 0.28, 1);
   sprite.position.y = 2.35;
   sprite.visible = false;
+  const paint = (text) => {
+    ctx.clearRect(0, 0, 160, 64);
+    ctx.fillStyle = "rgba(255, 246, 214, 0.94)";
+    ctx.fillRect(12, 8, 136, 40);
+    ctx.fillStyle = "#1a1408";
+    ctx.font = "bold 18px DM Sans, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const t = String(text || "…").slice(0, 14);
+    ctx.fillText(t, 80, 30);
+    tex.needsUpdate = true;
+  };
+  paint("…");
+  sprite.userData.setText = paint;
   return sprite;
 }
 

@@ -63,6 +63,52 @@ html, body {
   line-height: 1.35;
 }
 
+.hud__bill,
+.hud__wallet {
+  position: absolute;
+  right: 72px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 216, 74, 0.45);
+  border-radius: 8px;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: #ffd84a;
+}
+
+.hud__wallet {
+  top: 18px;
+  border-color: rgba(180, 220, 160, 0.45);
+  color: #c8f0a8;
+}
+
+.hud__bill {
+  top: 58px;
+}
+
+.hud__guide {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: rgba(18, 12, 4, 0.82);
+  border: 1px solid rgba(255, 216, 74, 0.5);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffd84a;
+  animation: guidePulse 1.6s ease-in-out infinite;
+  max-width: min(90vw, 420px);
+  text-align: center;
+}
+
+@keyframes guidePulse {
+  0%, 100% { opacity: 0.85; transform: translateX(-50%) translateY(0); }
+  50% { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+}
+
 .hud__pause {
   position: absolute;
   top: 16px;
@@ -143,12 +189,128 @@ html, body {
   text-decoration: underline;
 }
 
+.settings__card,
+.summary__card {
+  text-align: left;
+}
+
+.settings__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: rgba(255, 246, 214, 0.85);
+}
+
+.settings__row input[type="range"] {
+  width: 100%;
+  accent-color: #ffd84a;
+}
+
+.settings__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: rgba(255, 246, 214, 0.85);
+  cursor: pointer;
+}
+
+.settings__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ffd84a;
+}
+
+.summary__body {
+  margin: 8px 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 246, 214, 0.85);
+}
+
+.summary__body p {
+  margin: 0 0 4px;
+}
+
+.settings__card .menu__btn,
+.summary__card .menu__btn {
+  margin-top: 8px;
+}
+
 body.is-touch .hud__objective {
   top: 52px;
   left: 14px;
   right: 70px;
   max-width: none;
   font-size: 12px;
+}
+
+body.is-touch .hud__wallet {
+  top: auto;
+  bottom: max(250px, env(safe-area-inset-bottom));
+  right: max(18px, env(safe-area-inset-right));
+  font-size: 16px;
+}
+
+body.is-touch .hud__bill {
+  top: auto;
+  bottom: max(210px, env(safe-area-inset-bottom));
+  right: max(18px, env(safe-area-inset-right));
+  font-size: 16px;
+}
+
+.settings__select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 216, 74, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff6d6;
+  font: inherit;
+}
+
+.achievements__body {
+  max-height: min(50vh, 360px);
+  overflow: auto;
+  margin: 8px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ach {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  opacity: 0.45;
+}
+
+.ach--on {
+  opacity: 1;
+  border: 1px solid rgba(255, 216, 74, 0.35);
+}
+
+.ach__icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.ach strong {
+  display: block;
+  font-size: 14px;
+  color: #ffd84a;
+}
+
+.ach p {
+  font-size: 12px;
+  color: rgba(255, 246, 214, 0.7);
+  margin: 2px 0 0;
 }
 
 body.is-touch .hud__hint {
@@ -427,22 +589,22 @@ body.is-touch .hud__hint {
 
 .touch__btn {
   position: absolute;
-  right: max(22px, env(safe-area-inset-right));
-  bottom: max(48px, env(safe-area-inset-bottom));
-  width: 78px;
-  height: 78px;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(42px, env(safe-area-inset-bottom));
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 216, 74, 0.7);
-  background: rgba(12, 8, 2, 0.55);
+  border: 3px solid rgba(255, 216, 74, 0.85);
+  background: rgba(12, 8, 2, 0.62);
   color: #ffd84a;
   font-family: "Bebas Neue", sans-serif;
-  font-size: 30px;
+  font-size: 38px;
   letter-spacing: 0.06em;
   /* Visual only — tap/drag tratados no look (não rouba o dedo) */
   pointer-events: none;
   touch-action: none;
   z-index: 5;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(255, 216, 74, 0.12);
 }
 
 .touch__btn.is-down {

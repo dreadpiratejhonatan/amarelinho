@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="description" content="Noite no Amarelinho — uma noite no boteco em 3D. Converse com os garçons, sente na calçada e peça uma gelada." />
   <meta name="theme-color" content="#c9a000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <title>Amarelinho — Noite no boteco</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="src/styles/styles.css?v=v19" />
+  <link rel="stylesheet" href="src/styles/styles.css?v=v21" />
   <script>
-    window.AMA_BUILD = "v19";
+    window.AMA_BUILD = "v21";
     console.info("[Amarelinho] build", window.AMA_BUILD);
   </script>
   <script type="importmap">
@@ -34,6 +37,9 @@
       <div id="toast" class="toast" hidden></div>
       <div class="hud__brand">AMARELINHO</div>
       <div id="objective" class="hud__objective" hidden></div>
+      <div id="hud-wallet" class="hud__wallet" hidden></div>
+      <div id="hud-bill" class="hud__bill" hidden></div>
+      <div id="hud-guide" class="hud__guide" hidden></div>
       <button type="button" id="btn-pause" class="hud__pause" aria-label="Pausar">Ⅱ</button>
       <div class="hud__hint" id="hud-hint">WASD mover · mouse olhar · E interagir · Esc pausar</div>
     </div>
@@ -43,7 +49,59 @@
         <h2 class="pause__title">Pausado</h2>
         <p class="pause__sub">A noite continua quando você voltar.</p>
         <button type="button" class="menu__btn" id="btn-resume">Continuar</button>
+        <button type="button" class="pause__link" id="btn-settings">Ajustes</button>
+        <button type="button" class="pause__link" id="btn-achievements">Conquistas</button>
+        <button type="button" class="pause__link" id="btn-photo">Foto da noite</button>
+        <button type="button" class="pause__link" id="btn-share">Compartilhar noite</button>
         <button type="button" class="pause__link" id="btn-menu">Voltar ao menu</button>
+      </div>
+    </div>
+
+    <div id="settings" class="pause" hidden>
+      <div class="pause__card settings__card">
+        <h2 class="pause__title">Ajustes</h2>
+        <label class="settings__row">
+          <span>Sensibilidade</span>
+          <input type="range" id="set-sens" min="0.6" max="2.8" step="0.05" />
+        </label>
+        <label class="settings__row">
+          <span>Volume</span>
+          <input type="range" id="set-vol" min="0" max="1" step="0.05" />
+        </label>
+        <label class="settings__row">
+          <span>Idioma / Language</span>
+          <select id="set-lang" class="settings__select">
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label class="settings__check">
+          <input type="checkbox" id="set-invert" />
+          <span>Inverter olhar vertical</span>
+        </label>
+        <label class="settings__check">
+          <input type="checkbox" id="set-music" />
+          <span>Música / batida</span>
+        </label>
+        <button type="button" class="menu__btn" id="btn-settings-close">Fechar</button>
+      </div>
+    </div>
+
+    <div id="achievements" class="pause" hidden>
+      <div class="pause__card summary__card">
+        <h2 class="pause__title">Conquistas</h2>
+        <div id="achievements-body" class="achievements__body"></div>
+        <button type="button" class="menu__btn" id="btn-achievements-close">Fechar</button>
+      </div>
+    </div>
+
+    <div id="summary" class="pause" hidden>
+      <div class="pause__card summary__card">
+        <h2 class="pause__title">Noite completa</h2>
+        <p class="pause__sub">Resumo da sua passagem no Amarelinho</p>
+        <div id="summary-body" class="summary__body"></div>
+        <button type="button" class="menu__btn" id="btn-summary-share">Compartilhar noite</button>
+        <button type="button" class="pause__link" id="btn-summary-close">Continuar explorando</button>
       </div>
     </div>
 
@@ -63,7 +121,7 @@
         <h1 class="menu__title">AMARELINHO<br /><span class="menu__title-sub">DAS BATIDAS</span></h1>
         <p class="menu__sub">Chegue na calçada, converse com a galera do bar e peça uma gelada.</p>
         <button type="button" class="menu__btn" id="btn-play">Entrar no bar</button>
-        <p class="menu__cast">Toninho · Fabin · Seu Oliveira · Val · Ney · Carlinhos</p>
+        <p class="menu__cast">Toninho · Fabin · Seu Oliveira · Val · Ney · Carlinhos · Seu Zé</p>
       </div>
     </div>
 
@@ -76,6 +134,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/main.js?v=v19"></script>
+  <script type="module" src="src/js/main.js?v=v21"></script>
 </body>
 </html>

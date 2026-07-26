@@ -7,13 +7,19 @@ import { execSync } from "node:child_process";
 process.chdir(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIST = "dist";
 const HOST = path.join("release", "hostgator-amarelinho");
-const CACHE = "v19";
+const CACHE = "v21";
 
 fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(path.join(DIST, "styles"), { recursive: true });
 fs.mkdirSync(path.join(DIST, "assets"), { recursive: true });
 
 fs.copyFileSync("src/styles/styles.css", path.join(DIST, "styles", "styles.css"));
+if (fs.existsSync("manifest.webmanifest")) {
+  fs.copyFileSync("manifest.webmanifest", path.join(DIST, "manifest.webmanifest"));
+}
+if (fs.existsSync("sw.js")) {
+  fs.copyFileSync("sw.js", path.join(DIST, "sw.js"));
+}
 if (fs.existsSync("assets")) {
   for (const name of fs.readdirSync("assets")) {
     const from = path.join("assets", name);

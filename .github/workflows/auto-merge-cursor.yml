@@ -1,5 +1,9 @@
 # Auto-merge Cursor Cloud Agent PRs into develop, then kick production deploys.
-# Branches: cursor/**
+# Phone / cloud-agent branches: cursor/**
+#
+# Merges with GITHUB_TOKEN do not create push-triggered workflow runs, but
+# workflow_dispatch is an allowed exception — so we dispatch the existing
+# Deploy HostGator + Deploy GitHub Pages workflows after merge.
 name: Auto-merge Cursor PRs
 
 on:
@@ -100,6 +104,7 @@ jobs:
           echo "Squash-merging PR #$PR into develop"
           gh pr merge "$PR" --squash --delete-branch --subject "Auto-merge cursor PR #${PR}"
 
+          # workflow_dispatch is allowed to start new runs even from GITHUB_TOKEN.
           echo "Dispatching production deploys on develop…"
           gh workflow run "Deploy HostGator" --ref develop
           gh workflow run "Deploy GitHub Pages" --ref develop
