@@ -26,6 +26,142 @@ function meshCyl(rTop, rBot, h, color, opts) {
   return m;
 }
 
+/** Folha estilo Minecraft: pixels verdes com buracos (alphaTest). */
+function makeLeafTexture(hex = "#3d8c28", accent = "#6bc03a") {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, size, size);
+  const cell = 4;
+  for (let y = 0; y < size; y += cell) {
+    for (let x = 0; x < size; x += cell) {
+      const n = (x * 17 + y * 31) % 11;
+      if (n < 4) continue; // buraco transparente
+      ctx.fillStyle = n % 2 === 0 ? hex : accent;
+      ctx.fillRect(x, y, cell, cell);
+      if (n > 8) {
+        ctx.fillStyle = "#1e4a14";
+        ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+      }
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makeBarkTexture() {
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#5a3a22";
+  ctx.fillRect(0, 0, size, size);
+  for (let x = 0; x < size; x += 4) {
+    ctx.fillStyle = x % 8 === 0 ? "#3a2414" : "#6a4828";
+    ctx.fillRect(x, 0, 2, size);
+  }
+  for (let i = 0; i < 20; i++) {
+    ctx.fillStyle = "#2a1810";
+    ctx.fillRect((i * 7) % size, (i * 11) % size, 2, 3);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  return tex;
+}
+
+let _leafMats = null;
+function leafMaterials() {
+  if (_leafMats) return _leafMats;
+  const greens = [
+    makeLeafTexture("#2f7a22", "#4aa832"),
+    makeLeafTexture("#3d8c28", "#6bc03a"),
+    makeLeafTexture("#c44a88", "#e070a8"), // flor/rosa
+  ];
+  _leafMats = greens.map(
+    (map) =>
+      new THREE.MeshStandardMaterial({
+        map,
+        transparent: true,
+        alphaTest: 0.45,
+        roughness: 0.9,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+      })
+  );
+  return _leafMats;
+}
+
+/**
+ * Árvore voxel (tronco + copa em cruz) — dá pra ver através das folhas.
+ * @param {"green"|"flower"} variant
+ */
+function buildMinecraftTree(x, z, variant = "green", scale = 1) {
+  const root = new THREE.Group();
+  root.position.set(x, 0, z);
+
+  const bark = new THREE.MeshStandardMaterial({
+    map: makeBarkTexture(),
+    roughness: 0.95,
+    metalness: 0,
+  });
+  const trunkH = 2.4 * scale;
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.55 * scale, trunkH, 0.55 * scale), bark);
+  trunk.position.y = trunkH / 2;
+  trunk.castShadow = true;
+  root.add(trunk);
+
+  const mats = leafMaterials();
+  const leafMat = variant === "flower" ? mats[2] : mats[scale > 1 ? 1 : 0];
+  const s = 0.85 * scale;
+  const baseY = trunkH + 0.1 * scale;
+
+  // Camadas em cruz / plus (estilo Minecraft)
+  const layers = [
+    { y: 0, blocks: [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] },
+    { y: 1, blocks: [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]] },
+    { y: 2, blocks: [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] },
+    { y: 3, blocks: [[0, 0]] },
+  ];
+
+  for (const layer of layers) {
+    for (const [bx, bz] of layer.blocks) {
+      // Pula alguns cantos pra ficar mais “furado”
+      if (Math.abs(bx) === 1 && Math.abs(bz) === 1 && layer.y === 0 && (bx + bz) % 2 === 0) continue;
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), leafMat);
+      leaf.position.set(bx * s * 0.92, baseY + layer.y * s * 0.9, bz * s * 0.92);
+      leaf.castShadow = true;
+      leaf.receiveShadow = true;
+      root.add(leaf);
+    }
+  }
+
+  // Variante flor: manchas rosa extras na copa
+  if (variant === "flower") {
+    for (const [bx, bz, by] of [
+      [1.2, 0.3, 1],
+      [-0.8, 1.1, 2],
+      [0.4, -1.0, 1],
+    ]) {
+      const blossom = new THREE.Mesh(new THREE.BoxGeometry(s * 0.85, s * 0.85, s * 0.85), mats[2]);
+      blossom.position.set(bx * s, baseY + by * s * 0.9, bz * s);
+      root.add(blossom);
+    }
+  }
+
+  return root;
+}
+
 function addWallCollider(list, x, z, w, d) {
   list.push({
     minX: x - w / 2,
@@ -200,30 +336,13 @@ export class World {
       this.group.add(stripe);
     }
 
-    // Pink flowering tree on sidewalk
-    const trunk = meshCyl(0.22, 0.28, 3.6, 0x4a3020);
-    trunk.position.set(-7.2, 1.8, 4.5);
-    this.group.add(trunk);
-    const green = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 10), mat(0x2d5a28, { roughness: 0.85 }));
-    green.position.set(-7.2, 3.7, 4.5);
-    green.castShadow = true;
-    this.group.add(green);
-    const pink = new THREE.Mesh(
-      new THREE.SphereGeometry(1.25, 12, 10),
-      mat(0xe05090, { roughness: 0.8, emissive: 0x602030, emissiveIntensity: 0.25 })
-    );
-    pink.position.set(-6.2, 3.9, 5.1);
-    pink.castShadow = true;
-    this.group.add(pink);
-    addWallCollider(this.colliders, -7.2, 4.5, 0.75, 0.75);
+    // Árvores voxel (folhas furadas estilo Minecraft)
+    const treeL = buildMinecraftTree(-7.2, 4.5, "flower", 1.15);
+    this.group.add(treeL);
+    addWallCollider(this.colliders, -7.2, 4.5, 0.7, 0.7);
 
-    // Second tree
-    const t2 = meshCyl(0.14, 0.18, 3.0, 0x3a2818);
-    t2.position.set(7.5, 1.5, 5.0);
-    this.group.add(t2);
-    const c2 = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), mat(0x356030));
-    c2.position.set(7.5, 3.3, 5.0);
-    this.group.add(c2);
+    const treeR = buildMinecraftTree(7.5, 5.0, "green", 1.0);
+    this.group.add(treeR);
     addWallCollider(this.colliders, 7.5, 5.0, 0.55, 0.55);
 
     // Far sidewalk
