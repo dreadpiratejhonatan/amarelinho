@@ -9,7 +9,7 @@ require __DIR__ . '/lib.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#c9a000" />
   <meta name="robots" content="noindex" />
-  <title>Fluxo de pitacos — Amarelinho</title>
+  <title>Aprovar pitacos — Amarelinho</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -17,37 +17,31 @@ require __DIR__ . '/lib.php';
 </head>
 <body>
   <main class="wrap wrap--admin">
-    <p class="kicker">Painel do dono · fluxo padrão</p>
+    <p class="kicker">Comanda do dono</p>
     <h1 class="brand">PITACOS</h1>
-    <p class="lead">
-      Sempre o mesmo caminho: <strong>Novo → Aprovar → Copiar prompt → Cursor → No ar</strong>.
-      Um lote por dia.
-    </p>
+    <p class="lead">Aprova o que a galera mandou. Depois manda pro bar. Simples assim.</p>
 
     <nav class="nav">
-      <a href="./">← Caixa pública</a>
+      <a href="./">← Caixa da galera</a>
       <a href="../">Bar</a>
     </nav>
 
-    <ol class="pipeline" aria-label="Fluxo padrão">
+    <ol class="pipeline" aria-label="Fluxo">
       <li class="pipeline__step" data-step="1"><span>1</span> Novos</li>
-      <li class="pipeline__step" data-step="2"><span>2</span> Aprovar</li>
-      <li class="pipeline__step" data-step="3"><span>3</span> Prompt</li>
-      <li class="pipeline__step" data-step="4"><span>4</span> Cursor</li>
-      <li class="pipeline__step" data-step="5"><span>5</span> No ar</li>
+      <li class="pipeline__step" data-step="2"><span>2</span> Aprovados</li>
+      <li class="pipeline__step" data-step="3"><span>3</span> No ar</li>
     </ol>
 
     <section class="card" id="login-card">
       <form id="pin-form">
         <label>
-          PIN de administrador
+          PIN
           <div class="pin-row">
-            <input name="pin" type="password" required autocomplete="current-password" placeholder="PIN" />
+            <input name="pin" type="password" required autocomplete="current-password" placeholder="Seu PIN" />
             <button class="btn" type="submit">Entrar</button>
           </div>
         </label>
       </form>
-      <p class="meta">PIN só no secret <code>PITACOS_ADMIN_PIN</code> do GitHub — nunca no código.</p>
       <div id="admin-msg" class="msg" role="status"></div>
     </section>
 
@@ -55,7 +49,7 @@ require __DIR__ . '/lib.php';
       <div class="card">
         <div class="toolbar">
           <label style="margin:0">
-            Lote do dia
+            Dia
             <select id="day-select"></select>
           </label>
           <button type="button" class="btn btn--ghost" id="btn-refresh">Atualizar</button>
@@ -64,43 +58,30 @@ require __DIR__ . '/lib.php';
         <p id="day-stats" class="meta meta--stats"></p>
       </div>
 
-      <!-- 1 · Novos -->
-      <section class="card flow-card" data-flow="1">
+      <section class="card flow-card">
         <h2 class="day-title">1 · Novos</h2>
-        <p class="flow-help">Pitacos que a galera mandou. Aprove ou recuse.</p>
-        <div class="row-actions" id="pending-actions">
-          <button type="button" class="btn" id="btn-approve-all">Aprovar todos os novos</button>
+        <p class="flow-help">O que chegou pra você olhar.</p>
+        <div class="row-actions">
+          <button type="button" class="btn" id="btn-approve-all">Aprovar todos</button>
         </div>
         <div id="list-pending" class="ticket-list"></div>
       </section>
 
-      <!-- 2 · Aprovados + 3 · Prompt -->
-      <section class="card flow-card" data-flow="2">
-        <h2 class="day-title">2 · Aprovados · 3 · Prompt do lote</h2>
-        <p class="flow-help">Só os aprovados entram no prompt. Copie e cole no Cursor Agent.</p>
+      <section class="card flow-card">
+        <h2 class="day-title">2 · Aprovados</h2>
+        <p class="flow-help">Esses vão pro bar. Copia o pedido e manda no Cursor.</p>
         <div id="list-approved" class="ticket-list"></div>
-        <textarea id="day-prompt" class="prompt-box" readonly placeholder="Aprove pelo menos um pitaco pra gerar o prompt…"></textarea>
+        <textarea id="day-prompt" class="prompt-box" hidden readonly aria-hidden="true"></textarea>
         <div class="row-actions">
-          <button type="button" class="btn" id="btn-copy-prompt">3 · Copiar prompt do lote</button>
+          <button type="button" class="btn" id="btn-copy-prompt">Copiar pedido do dia</button>
         </div>
       </section>
 
-      <!-- 4 · Cursor -->
-      <section class="card flow-card" data-flow="4">
-        <h2 class="day-title">4 · Cursor Agent</h2>
-        <ol class="flow-olist">
-          <li>Cole o prompt num agente Cursor (cloud/mobile).</li>
-          <li>Espere o PR <code>cursor/*</code> → auto-merge em <code>develop</code>.</li>
-          <li>Espere o Action <strong>Deploy HostGator</strong> ficar verde.</li>
-        </ol>
-      </section>
-
-      <!-- 5 · No ar -->
-      <section class="card flow-card" data-flow="5">
-        <h2 class="day-title">5 · No ar</h2>
-        <p class="flow-help">Deploy verde? Feche o lote. Os aprovados viram “No ar”.</p>
+      <section class="card flow-card">
+        <h2 class="day-title">3 · No ar</h2>
+        <p class="flow-help">Já tá no site? Fecha a comanda do dia.</p>
         <div class="row-actions">
-          <button type="button" class="btn" id="btn-ship-all">Marcar lote no ar</button>
+          <button type="button" class="btn" id="btn-ship-all">Marcar como no ar</button>
         </div>
         <div id="list-shipped" class="ticket-list"></div>
       </section>

@@ -107,14 +107,18 @@ function wireAdmin() {
     document.querySelectorAll(".pipeline__step").forEach((el) => {
       el.classList.remove("is-active", "is-done");
       const step = el.getAttribute("data-step");
-      if (step === "1" && pending > 0) el.classList.add("is-active");
-      if (step === "1" && pending === 0 && (approved > 0 || shipped > 0)) el.classList.add("is-done");
-      if (step === "2" && pending > 0) el.classList.add("is-active");
-      if (step === "2" && pending === 0 && approved > 0) el.classList.add("is-done");
-      if (step === "3" && approved > 0) el.classList.add("is-active");
-      if (step === "4" && approved > 0) el.classList.add("is-active");
-      if (step === "5" && approved > 0) el.classList.add("is-active");
-      if (step === "5" && approved === 0 && shipped > 0) el.classList.add("is-done");
+      if (step === "1") {
+        if (pending > 0) el.classList.add("is-active");
+        else if (approved > 0 || shipped > 0) el.classList.add("is-done");
+      }
+      if (step === "2") {
+        if (approved > 0) el.classList.add("is-active");
+        else if (shipped > 0 && pending === 0) el.classList.add("is-done");
+      }
+      if (step === "3") {
+        if (approved > 0) el.classList.add("is-active");
+        if (approved === 0 && shipped > 0) el.classList.add("is-done");
+      }
     });
   }
 
@@ -139,10 +143,10 @@ function wireAdmin() {
     const actions = document.createElement("div");
     actions.className = "row-actions";
 
-    const setStatus = (status, label) => {
+    const setStatus = (status, label, primary = false) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = status === "approved" || status === "shipped" ? "btn" : "btn btn--ghost";
+      b.className = primary ? "btn" : "btn btn--ghost";
       b.textContent = label;
       b.addEventListener("click", async () => {
         try {
@@ -151,7 +155,7 @@ function wireAdmin() {
             body: { day: t.day, id: t.id, status },
           });
           await refresh(t.day);
-          showMsg(msg, `${t.id} → ${STATUS_LABEL[status] || status}`, true);
+          showMsg(msg, `${STATUS_LABEL[status] || status}.`, true);
         } catch (err) {
           showMsg(msg, err.message, false);
         }
@@ -159,15 +163,12 @@ function wireAdmin() {
       return b;
     };
 
-    // Ações só do próximo passo (fluxo padrão)
     if (mode === "pending") {
-      actions.append(setStatus("approved", "Aprovar"), setStatus("rejected", "Recusar"));
+      actions.append(setStatus("approved", "Aprovar", true), setStatus("rejected", "Recusar"));
     } else if (mode === "approved") {
-      actions.append(setStatus("pending", "Voltar pra novos"));
+      actions.append(setStatus("pending", "Voltar"));
     } else if (mode === "rejected") {
       actions.append(setStatus("pending", "Reabrir"));
-    } else if (mode === "shipped") {
-      /* sem ação — lote fechado */
     }
 
     card.append(head, when, body);
@@ -178,8 +179,8 @@ function wireAdmin() {
   async function refresh(day) {
     const data = await api("list", { day });
     const stats = data.stats || {};
-    statsEl.textContent = `Lote ${data.day} · ${stats.pending || 0} novos · ${stats.approved || 0} aprovados · ${stats.shipped || 0} no ar · ${stats.rejected || 0} recusados`;
-    promptEl.value = data.prompt || "";
+    statsEl.textContent = `${stats.pending || 0} novos · ${stats.approved || 0} aprovados · ${stats.shipped || 0} no ar`;
+    if (promptEl) promptEl.value = data.prompt || "";
     paintPipeline(stats);
 
     const buckets = { pending: [], approved: [], shipped: [], rejected: [] };
@@ -193,13 +194,14 @@ function wireAdmin() {
       if (!el) continue;
       el.innerHTML = "";
       if (!buckets[key].length) {
-        const emptyMsg = {
-          pending: "Nenhum pitaco novo neste dia.",
-          approved: "Nenhum aprovado esperando implementação.",
-          shipped: "Nenhum no ar ainda neste dia.",
-          rejected: "Nenhum recusado.",
-        }[key];
-        el.innerHTML = emptyHtml(emptyMsg);
+        el.innerHTML = emptyHtml(
+          {
+            pending: "Nada novo por enquanto.",
+            approved: "Nenhum aprovado ainda.",
+            shipped: "Ainda não fechou nenhum no ar.",
+            rejected: "Nenhum recusado.",
+          }[key]
+        );
         continue;
       }
       for (const t of buckets[key]) el.appendChild(renderTicket(t, key));
@@ -207,8 +209,10 @@ function wireAdmin() {
 
     const approveAll = document.getElementById("btn-approve-all");
     const shipAll = document.getElementById("btn-ship-all");
+    const copyBtn = document.getElementById("btn-copy-prompt");
     if (approveAll) approveAll.disabled = !(stats.pending > 0);
     if (shipAll) shipAll.disabled = !(stats.approved > 0);
+    if (copyBtn) copyBtn.disabled = !(stats.approved > 0);
   }
 
   async function enterAdmin() {
@@ -232,7 +236,7 @@ function wireAdmin() {
     e.preventDefault();
     try {
       await api("login", { method: "POST", body: { pin: pinForm.pin.value } });
-      showMsg(msg, "Entrou. Siga o fluxo 1 → 5.", true);
+      showMsg(msg, "Entrou.", true);
       await enterAdmin();
     } catch (err) {
       showMsg(msg, err.message || "PIN incorreto", false);
@@ -254,39 +258,42 @@ function wireAdmin() {
         body: { day: daySelect.value },
       });
       await refresh(daySelect.value);
-      showMsg(msg, res.changed ? `${res.changed} pitaco(s) aprovado(s). Vá pro passo 3.` : "Nada novo pra aprovar.", true);
+      showMsg(msg, res.changed ? `${res.changed} aprovado(s). Agora copia o pedido.` : "Nada novo.", true);
     } catch (err) {
       showMsg(msg, err.message, false);
     }
   });
 
   document.getElementById("btn-ship-all")?.addEventListener("click", async () => {
-    if (!confirm("Deploy HostGator já está verde? Isso marca todos os aprovados do dia como No ar.")) {
-      return;
-    }
+    if (!confirm("Já tá no site? Isso marca os aprovados do dia como no ar.")) return;
     try {
       const res = await api("ship_approved", {
         method: "POST",
         body: { day: daySelect.value },
       });
       await refresh(daySelect.value);
-      showMsg(msg, res.changed ? `Lote fechado: ${res.changed} no ar.` : "Nenhum aprovado pra marcar.", true);
+      showMsg(msg, res.changed ? `Fechado: ${res.changed} no ar.` : "Nada pra marcar.", true);
     } catch (err) {
       showMsg(msg, err.message, false);
     }
   });
 
   document.getElementById("btn-copy-prompt")?.addEventListener("click", async () => {
-    if (!promptEl.value.trim() || promptEl.value.includes("Nenhum pitaco aprovado")) {
-      showMsg(msg, "Aprove pelo menos um pitaco antes de copiar o prompt.", false);
+    const text = promptEl?.value?.trim() || "";
+    if (!text || text.includes("Nenhum pitaco aprovado")) {
+      showMsg(msg, "Aprova pelo menos um pitaco antes.", false);
       return;
     }
     try {
-      await navigator.clipboard.writeText(promptEl.value);
-      showMsg(msg, "Prompt copiado. Cole no Cursor (passo 4). Depois do deploy verde, passo 5.", true);
+      await navigator.clipboard.writeText(text);
+      showMsg(msg, "Pedido copiado. Cola no Cursor e manda implementar.", true);
     } catch {
-      promptEl.select();
-      showMsg(msg, "Selecione o texto e copie (Ctrl/Cmd+C).", false);
+      if (promptEl) {
+        promptEl.hidden = false;
+        promptEl.focus();
+        promptEl.select();
+      }
+      showMsg(msg, "Copia o texto selecionado (Ctrl/Cmd+C).", false);
     }
   });
 
@@ -301,9 +308,7 @@ function wireAdmin() {
 
   api("days")
     .then(() => enterAdmin())
-    .catch(() => {
-      /* precisa login */
-    });
+    .catch(() => {});
 }
 
 wirePublicForm();
