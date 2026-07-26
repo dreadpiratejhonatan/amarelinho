@@ -1,4 +1,4 @@
-/** Controles touch: stick à esquerda, olhar à direita, botão E (tap). */
+/** Controles touch: stick esquerdo anda, stick direito olha, botão E interage. */
 
 export function isTouchDevice() {
   try {
@@ -11,36 +11,8 @@ export function isTouchDevice() {
   const noHover = window.matchMedia("(hover: none)").matches;
   const fineDesktop = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const narrow = Math.min(window.innerWidth, window.innerHeight) <= 920;
-  // Desktop clássico (mouse fino, sem toque): WASD/mouse
   if (fineDesktop && !coarse && !touchPoints) return false;
   return coarse || noHover || (touchPoints && narrow) || (narrow && !fineDesktop);
-}
-
-/** Elementos de UI onde o look NÃO deve capturar o dedo. */
-function isUiTouchTarget(el) {
-  if (!el || !(el instanceof Element)) return false;
-  // Botão E tem handler próprio — look não deve roubar
-  if (el.closest("#touch-interact")) return true;
-  return !!el.closest(
-    [
-      "button",
-      "a",
-      "input",
-      "select",
-      "textarea",
-      "label",
-      "#dialogue",
-      "#pause",
-      "#settings",
-      "#achievements",
-      "#summary",
-      "#menu",
-      ".menu",
-      ".pause",
-      ".dialogue",
-      "#btn-pause",
-    ].join(",")
-  );
 }
 
 function overlayBlocksLook() {
@@ -56,20 +28,23 @@ export class TouchControls {
   constructor(input) {
     this.input = input;
     this.enabled = false;
-    this.lookSens = 1.55;
+    /** Velocidade do stick de olhar (px-equivalente / s no fundo do stick).
+     *  A sensibilidade dos Ajustes multiplica depois no player. */
+    this.lookStickRate = 280;
     this._joyId = null;
-    this._lookId = null;
-    this._lookLast = null;
-    this._lookMoved = 0;
+    this._lookJoyId = null;
     this._btnPtrId = null;
     this._btnMoved = 0;
     this._btnLast = null;
     this._origin = { x: 0, y: 0 };
+    this._lookOrigin = { x: 0, y: 0 };
+    this._lookStick = { x: 0, y: 0 };
 
     this.root = document.getElementById("touch-controls");
     this.stick = document.getElementById("touch-stick");
     this.knob = document.getElementById("touch-knob");
-    this.zoneLook = document.getElementById("touch-look");
+    this.lookStick = document.getElementById("touch-look-stick");
+    this.lookKnob = document.getElementById("touch-look-knob");
     this.btnInteract = document.getElementById("touch-interact");
 
     if (!this.root) return;
@@ -82,14 +57,13 @@ export class TouchControls {
     input.mobile = true;
     input.locked = true;
 
-    this._bindJoystick();
+    this._bindMoveStick();
+    this._bindLookStick();
     this._bindInteractButton();
-    this._bindLook();
   }
 
   show() {
     if (!this.root) return;
-    // Não reaparece em cima do diálogo / pausa
     if (overlayBlocksLook()) return;
     this.root.hidden = false;
     document.body.classList.remove("touch-hidden");
@@ -101,12 +75,23 @@ export class TouchControls {
     if (!this.root) return;
     this.root.hidden = true;
     document.body.classList.add("touch-hidden");
-    this._resetLook();
-    this._resetStick();
+    this._resetMoveStick();
+    this._resetLookStick();
     this._resetBtn();
   }
 
-  _resetStick() {
+  /** Aplica o stick de câmera a cada frame (segurar = continuar virando). */
+  update(dt) {
+    if (!this.enabled || this.root?.hidden || overlayBlocksLook()) return;
+    const ax = this._lookStick.x;
+    const ay = this._lookStick.y;
+    if (Math.abs(ax) < 0.04 && Math.abs(ay) < 0.04) return;
+    const rate = this.lookStickRate;
+    this.input.lookDX += ax * rate * dt;
+    this.input.lookDY += ay * rate * dt;
+  }
+
+  _resetMoveStick() {
     this._joyId = null;
     if (this.input.analog) {
       this.input.analog.x = 0;
@@ -115,10 +100,11 @@ export class TouchControls {
     if (this.knob) this.knob.style.transform = "translate(-50%, -50%)";
   }
 
-  _resetLook() {
-    this._lookId = null;
-    this._lookLast = null;
-    this._lookMoved = 0;
+  _resetLookStick() {
+    this._lookJoyId = null;
+    this._lookStick.x = 0;
+    this._lookStick.y = 0;
+    if (this.lookKnob) this.lookKnob.style.transform = "translate(-50%, -50%)";
   }
 
   _resetBtn() {
@@ -128,10 +114,9 @@ export class TouchControls {
     this._btnLast = null;
   }
 
-  _inStick(clientX, clientY) {
-    if (!this.stick) return false;
-    const r = this.stick.getBoundingClientRect();
-    const pad = 12;
+  _inEl(el, clientX, clientY, pad = 12) {
+    if (!el || this.root?.hidden) return false;
+    const r = el.getBoundingClientRect();
     return (
       clientX >= r.left - pad &&
       clientX <= r.right + pad &&
@@ -141,74 +126,63 @@ export class TouchControls {
   }
 
   _inInteractBtn(clientX, clientY) {
-    if (!this.btnInteract || this.root?.hidden) return false;
-    const r = this.btnInteract.getBoundingClientRect();
-    // Hit area um pouco maior que o círculo visual
-    const pad = 10;
-    return (
-      clientX >= r.left - pad &&
-      clientX <= r.right + pad &&
-      clientY >= r.top - pad &&
-      clientY <= r.bottom + pad
-    );
+    return this._inEl(this.btnInteract, clientX, clientY, 10);
   }
 
-  _bindJoystick() {
-    const zone = this.stick;
-    if (!zone) return;
+  _pointFromEvent(e) {
+    if (e.changedTouches?.[0]) {
+      const t = e.changedTouches[0];
+      return { id: t.identifier, x: t.clientX, y: t.clientY };
+    }
+    return { id: e.pointerId ?? "mouse", x: e.clientX, y: e.clientY };
+  }
 
-    const pointFromEvent = (e) => {
-      if (e.changedTouches?.[0]) {
-        const t = e.changedTouches[0];
-        return { id: t.identifier, x: t.clientX, y: t.clientY };
-      }
-      return { id: e.pointerId ?? "mouse", x: e.clientX, y: e.clientY };
-    };
+  _bindAnalogStick({ zone, getOrigin, onUpdate, onReset, getId, setId }) {
+    if (!zone) return;
 
     const onStart = (e) => {
       if (this.root?.hidden || overlayBlocksLook()) return;
-      const p = pointFromEvent(e);
-      this._joyId = p.id;
-      if (this._lookId === this._joyId) this._resetLook();
+      const p = this._pointFromEvent(e);
+      setId(p.id);
       const r = zone.getBoundingClientRect();
-      this._origin.x = r.left + r.width / 2;
-      this._origin.y = r.top + r.height / 2;
-      this._updateStick(p.x, p.y);
+      getOrigin().x = r.left + r.width / 2;
+      getOrigin().y = r.top + r.height / 2;
+      onUpdate(p.x, p.y);
       e.preventDefault();
       e.stopPropagation();
     };
     const onMove = (e) => {
-      if (this._joyId == null) return;
+      if (getId() == null) return;
       if (e.changedTouches) {
         for (const t of e.changedTouches) {
-          if (t.identifier === this._joyId) {
-            this._updateStick(t.clientX, t.clientY);
+          if (t.identifier === getId()) {
+            onUpdate(t.clientX, t.clientY);
             e.preventDefault();
             break;
           }
         }
         return;
       }
-      if ((e.pointerId ?? "mouse") === this._joyId) {
-        this._updateStick(e.clientX, e.clientY);
+      if ((e.pointerId ?? "mouse") === getId()) {
+        onUpdate(e.clientX, e.clientY);
         e.preventDefault();
       }
     };
     const onEnd = (e) => {
-      if (this._joyId == null) return;
+      if (getId() == null) return;
       let match = false;
       if (e.changedTouches) {
         for (const t of e.changedTouches) {
-          if (t.identifier === this._joyId) {
+          if (t.identifier === getId()) {
             match = true;
             break;
           }
         }
       } else {
-        match = (e.pointerId ?? "mouse") === this._joyId;
+        match = (e.pointerId ?? "mouse") === getId();
       }
       if (!match) return;
-      this._resetStick();
+      onReset();
       e.preventDefault();
     };
 
@@ -216,9 +190,8 @@ export class TouchControls {
     zone.addEventListener("touchmove", onMove, { passive: false });
     zone.addEventListener("touchend", onEnd, { passive: false });
     zone.addEventListener("touchcancel", onEnd, { passive: false });
-    // Mouse / pen / DevTools sem touch events reais
     zone.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "touch") return; // já coberto por touch*
+      if (e.pointerType === "touch") return;
       if (e.button !== 0) return;
       onStart(e);
       zone.setPointerCapture?.(e.pointerId);
@@ -237,7 +210,35 @@ export class TouchControls {
     });
   }
 
-  _updateStick(x, y) {
+  _bindMoveStick() {
+    this._bindAnalogStick({
+      zone: this.stick,
+      getOrigin: () => this._origin,
+      getId: () => this._joyId,
+      setId: (id) => {
+        this._joyId = id;
+        if (this._lookJoyId === id) this._resetLookStick();
+      },
+      onUpdate: (x, y) => this._updateMoveStick(x, y),
+      onReset: () => this._resetMoveStick(),
+    });
+  }
+
+  _bindLookStick() {
+    this._bindAnalogStick({
+      zone: this.lookStick,
+      getOrigin: () => this._lookOrigin,
+      getId: () => this._lookJoyId,
+      setId: (id) => {
+        this._lookJoyId = id;
+        if (this._joyId === id) this._resetMoveStick();
+      },
+      onUpdate: (x, y) => this._updateLookStick(x, y),
+      onReset: () => this._resetLookStick(),
+    });
+  }
+
+  _updateMoveStick(x, y) {
     const dx = x - this._origin.x;
     const dy = y - this._origin.y;
     const max = 62;
@@ -252,15 +253,27 @@ export class TouchControls {
     }
   }
 
-  /**
-   * Botão E: captura em document por geometria (touch + ponteiro).
-   * Touch* cobre celular real / Playwright touchscreen; pointer* cobre mouse/DevTools.
-   */
+  _updateLookStick(x, y) {
+    const dx = x - this._lookOrigin.x;
+    const dy = y - this._lookOrigin.y;
+    const max = 62;
+    const len = Math.hypot(dx, dy) || 1;
+    const clamped = Math.min(len, max);
+    const nx = (dx / len) * clamped;
+    const ny = (dy / len) * clamped;
+    this._lookStick.x = nx / max;
+    this._lookStick.y = ny / max;
+    if (this.lookKnob) {
+      this.lookKnob.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+    }
+  }
+
+  /** Botão E: só tap pra interagir (câmera tem stick próprio). */
   _bindInteractButton() {
     const btn = this.btnInteract;
     if (!btn) return;
 
-    const TAP_SLOP = 40;
+    const TAP_SLOP = 28;
 
     const begin = (id, x, y) => {
       this._btnPtrId = id;
@@ -274,10 +287,6 @@ export class TouchControls {
       const dx = x - this._btnLast.x;
       const dy = y - this._btnLast.y;
       this._btnMoved += Math.hypot(dx, dy);
-      if (this._btnMoved >= TAP_SLOP) {
-        this.input.lookDX += dx * this.lookSens;
-        this.input.lookDY += dy * this.lookSens;
-      }
       this._btnLast = { x, y };
       return true;
     };
@@ -311,7 +320,6 @@ export class TouchControls {
       }
     };
     const onTouchEnd = (e) => {
-      // Se o diálogo abriu no meio do gesto, só limpa — não engole o toque da UI
       if (this.root?.hidden || overlayBlocksLook()) {
         if (this._btnPtrId != null) this._resetBtn();
         return;
@@ -326,7 +334,7 @@ export class TouchControls {
     };
 
     const onPointerDown = (e) => {
-      if (e.pointerType === "touch") return; // já coberto por touch*
+      if (e.pointerType === "touch") return;
       if (this.root?.hidden || overlayBlocksLook()) return;
       if (e.button != null && e.button !== 0) return;
       if (!this._inInteractBtn(e.clientX, e.clientY)) return;
@@ -358,127 +366,5 @@ export class TouchControls {
       e.preventDefault();
       e.stopPropagation();
     });
-  }
-
-  /**
-   * Olhar na metade direita. Move/end no document (capture) pra não perder
-   * o dedo ao arrastar pra borda. Toques em botões/diálogos/menus são ignorados.
-   */
-  _bindLook() {
-    const onStart = (e) => {
-      if (this.root?.hidden) return;
-      if (overlayBlocksLook()) return;
-
-      const touches = e.changedTouches
-        ? [...e.changedTouches].map((t) => ({
-            id: t.identifier,
-            x: t.clientX,
-            y: t.clientY,
-            target: document.elementFromPoint(t.clientX, t.clientY) || e.target,
-          }))
-        : [
-            {
-              id: e.pointerId ?? "mouse",
-              x: e.clientX,
-              y: e.clientY,
-              target: e.target,
-            },
-          ];
-
-      for (const t of touches) {
-        if (t.id === this._joyId || t.id === this._btnPtrId) continue;
-        if (this._inStick(t.x, t.y)) continue;
-        if (this._inInteractBtn(t.x, t.y)) continue;
-        if (isUiTouchTarget(t.target)) continue;
-
-        // Metade esquerda livre pro stick / mão esquerda
-        if (t.x < window.innerWidth * 0.36) continue;
-        // Faixa do topo (pausa / HUD)
-        if (t.y < 72) continue;
-
-        this._lookId = t.id;
-        this._lookLast = { x: t.x, y: t.y };
-        this._lookMoved = 0;
-        e.preventDefault();
-        break;
-      }
-    };
-
-    const onMove = (e) => {
-      if (this._lookId == null) return;
-      if (this.root?.hidden || overlayBlocksLook()) {
-        this._resetLook();
-        return;
-      }
-      const points = e.changedTouches
-        ? [...e.changedTouches].map((t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }))
-        : [{ id: e.pointerId ?? "mouse", x: e.clientX, y: e.clientY }];
-
-      for (const t of points) {
-        if (t.id !== this._lookId || !this._lookLast) continue;
-        const dx = t.x - this._lookLast.x;
-        const dy = t.y - this._lookLast.y;
-        this._lookMoved += Math.hypot(dx, dy);
-        this.input.lookDX += dx * this.lookSens;
-        this.input.lookDY += dy * this.lookSens;
-        this._lookLast = { x: t.x, y: t.y };
-        e.preventDefault();
-        break;
-      }
-    };
-
-    const onEnd = (e) => {
-      if (this._lookId == null) return;
-      if (this.root?.hidden || overlayBlocksLook()) {
-        this._resetLook();
-        return;
-      }
-      const ids = e.changedTouches
-        ? [...e.changedTouches].map((t) => t.identifier)
-        : [e.pointerId ?? "mouse"];
-      if (!ids.includes(this._lookId)) return;
-      this._resetLook();
-      e.preventDefault();
-    };
-
-    document.addEventListener("touchstart", onStart, { passive: false, capture: true });
-    document.addEventListener("touchmove", onMove, { passive: false, capture: true });
-    document.addEventListener("touchend", onEnd, { passive: false, capture: true });
-    document.addEventListener("touchcancel", onEnd, { passive: false, capture: true });
-
-    // Ponteiro (mouse/pen) só quando controles touch estão ativos — DevTools / hybrid
-    document.addEventListener(
-      "pointerdown",
-      (e) => {
-        if (e.pointerType === "touch") return;
-        if (this.root?.hidden) return;
-        onStart(e);
-      },
-      { capture: true }
-    );
-    document.addEventListener(
-      "pointermove",
-      (e) => {
-        if (e.pointerType === "touch") return;
-        onMove(e);
-      },
-      { capture: true }
-    );
-    document.addEventListener(
-      "pointerup",
-      (e) => {
-        if (e.pointerType === "touch") return;
-        onEnd(e);
-      },
-      { capture: true }
-    );
-    document.addEventListener(
-      "pointercancel",
-      (e) => {
-        if (e.pointerType === "touch") return;
-        onEnd(e);
-      },
-      { capture: true }
-    );
   }
 }

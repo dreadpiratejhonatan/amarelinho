@@ -171,7 +171,7 @@ class Game {
 
     const hint = document.getElementById("hud-hint");
     if (hint && isTouchDevice()) {
-      hint.textContent = "Stick · arrasta direita · toque E";
+      hint.textContent = "Stick esq. anda · stick dir. olha · E fala";
     }
 
     if ("serviceWorker" in navigator) {
@@ -316,7 +316,7 @@ class Game {
 
     this.hud.showToast(
       this.input.mobile
-        ? "Stick pra andar · arrasta pra olhar · botão E pra falar"
+        ? "Stick esquerdo anda · stick direito olha · E pra falar"
         : `Bolso R$ ${this.progress.data.wallet}. Siga a missão.`,
       3600
     );
@@ -447,6 +447,7 @@ class Game {
     };
     const canMove = playing;
     const canLook = playing && (this.input.locked || this.input.mobile);
+    if (canLook || this.player.sitting) this.touch?.update?.(dt);
     this.player.update(dt, this.input, canMove && !this.player.sitting, canLook, lookOpts);
 
     if (this._guideTimer > 0) {
