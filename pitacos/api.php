@@ -21,12 +21,12 @@ try {
     }
     $day = (string) ($_GET['day'] ?? ama_today());
     $tickets = ama_load_day($day);
-    // não expor IP no admin JSON público da sessão — ok mostrar pro dono
     ama_json_response([
       'ok' => true,
       'day' => $day,
       'tickets' => $tickets,
-      'prompt' => ama_compile_prompt($day, true),
+      'stats' => ama_day_stats($tickets),
+      'prompt' => ama_compile_prompt($day),
     ]);
   }
 
@@ -38,7 +38,7 @@ try {
     ama_json_response([
       'ok' => true,
       'day' => $day,
-      'prompt' => ama_compile_prompt($day, true),
+      'prompt' => ama_compile_prompt($day),
     ]);
   }
 
@@ -85,10 +85,46 @@ try {
     $id = (string) ($body['id'] ?? '');
     $status = (string) ($body['status'] ?? '');
     $ticket = ama_update_status($day, $id, $status);
+    $tickets = ama_load_day($day);
     ama_json_response([
       'ok' => true,
       'ticket' => $ticket,
-      'prompt' => ama_compile_prompt($day, true),
+      'stats' => ama_day_stats($tickets),
+      'prompt' => ama_compile_prompt($day),
+    ]);
+  }
+
+  // Passo 1 em lote: todos os novos → aprovados
+  if ($method === 'POST' && $action === 'approve_pending') {
+    if (!ama_admin_ok()) {
+      ama_json_response(['ok' => false, 'error' => 'Não autorizado'], 401);
+    }
+    $body = ama_read_json_body();
+    $day = (string) ($body['day'] ?? ama_today());
+    $n = ama_bulk_status($day, 'pending', 'approved');
+    $tickets = ama_load_day($day);
+    ama_json_response([
+      'ok' => true,
+      'changed' => $n,
+      'stats' => ama_day_stats($tickets),
+      'prompt' => ama_compile_prompt($day),
+    ]);
+  }
+
+  // Passo 4: aprovados do dia → no ar (depois do deploy verde)
+  if ($method === 'POST' && $action === 'ship_approved') {
+    if (!ama_admin_ok()) {
+      ama_json_response(['ok' => false, 'error' => 'Não autorizado'], 401);
+    }
+    $body = ama_read_json_body();
+    $day = (string) ($body['day'] ?? ama_today());
+    $n = ama_bulk_status($day, 'approved', 'shipped');
+    $tickets = ama_load_day($day);
+    ama_json_response([
+      'ok' => true,
+      'changed' => $n,
+      'stats' => ama_day_stats($tickets),
+      'prompt' => ama_compile_prompt($day),
     ]);
   }
 

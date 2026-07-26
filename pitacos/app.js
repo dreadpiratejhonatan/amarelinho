@@ -51,17 +51,10 @@ function wirePublicForm() {
     btn.disabled = true;
     btn.textContent = "Mandando…";
     try {
-      await api("submit", {
-        method: "POST",
-        body: { body },
-      });
+      await api("submit", { method: "POST", body: { body } });
       form.reset();
       refreshCount();
-      showMsg(
-        msg,
-        "Pitaco na comanda! A gente lê, aprova e coloca no bar. Valeu demais!",
-        true
-      );
+      showMsg(msg, "Pitaco na comanda! A gente lê, aprova e coloca no bar. Valeu demais!", true);
       btn.textContent = "Mandar outro";
     } catch (err) {
       showMsg(msg, err.message || "Não rolou enviar. Tenta de novo num instante.", false);
@@ -72,17 +65,22 @@ function wirePublicForm() {
   });
 }
 
+const STATUS_LABEL = {
+  pending: "Novo",
+  approved: "Aprovado",
+  rejected: "Recusado",
+  shipped: "No ar",
+};
+
 function statusBadge(status) {
   const span = document.createElement("span");
   span.className = `badge badge--${status || "pending"}`;
-  const labels = {
-    pending: "Pendente",
-    approved: "Aprovado",
-    rejected: "Recusado",
-    shipped: "No ar",
-  };
-  span.textContent = labels[status] || status;
+  span.textContent = STATUS_LABEL[status] || status;
   return span;
+}
+
+function emptyHtml(text) {
+  return `<p class="empty">${text}</p>`;
 }
 
 function wireAdmin() {
@@ -93,66 +91,124 @@ function wireAdmin() {
   const pinForm = document.getElementById("pin-form");
   const msg = document.getElementById("admin-msg");
   const daySelect = document.getElementById("day-select");
-  const listEl = document.getElementById("ticket-list");
   const promptEl = document.getElementById("day-prompt");
-  const dayTitle = document.getElementById("day-title");
+  const statsEl = document.getElementById("day-stats");
+  const lists = {
+    pending: document.getElementById("list-pending"),
+    approved: document.getElementById("list-approved"),
+    shipped: document.getElementById("list-shipped"),
+    rejected: document.getElementById("list-rejected"),
+  };
+
+  function paintPipeline(stats) {
+    const pending = stats?.pending || 0;
+    const approved = stats?.approved || 0;
+    const shipped = stats?.shipped || 0;
+    document.querySelectorAll(".pipeline__step").forEach((el) => {
+      el.classList.remove("is-active", "is-done");
+      const step = el.getAttribute("data-step");
+      if (step === "1" && pending > 0) el.classList.add("is-active");
+      if (step === "1" && pending === 0 && (approved > 0 || shipped > 0)) el.classList.add("is-done");
+      if (step === "2" && pending > 0) el.classList.add("is-active");
+      if (step === "2" && pending === 0 && approved > 0) el.classList.add("is-done");
+      if (step === "3" && approved > 0) el.classList.add("is-active");
+      if (step === "4" && approved > 0) el.classList.add("is-active");
+      if (step === "5" && approved > 0) el.classList.add("is-active");
+      if (step === "5" && approved === 0 && shipped > 0) el.classList.add("is-done");
+    });
+  }
+
+  function renderTicket(t, mode) {
+    const card = document.createElement("article");
+    card.className = "ticket";
+    const head = document.createElement("div");
+    head.className = "ticket__head";
+    const id = document.createElement("span");
+    id.className = "ticket__id";
+    id.textContent = t.id;
+    head.append(id, statusBadge(t.status));
+
+    const body = document.createElement("div");
+    body.className = "ticket__body";
+    body.textContent = t.body || "";
+
+    const when = document.createElement("div");
+    when.className = "ticket__author";
+    when.textContent = t.createdAt || "";
+
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+
+    const setStatus = (status, label) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = status === "approved" || status === "shipped" ? "btn" : "btn btn--ghost";
+      b.textContent = label;
+      b.addEventListener("click", async () => {
+        try {
+          await api("status", {
+            method: "POST",
+            body: { day: t.day, id: t.id, status },
+          });
+          await refresh(t.day);
+          showMsg(msg, `${t.id} → ${STATUS_LABEL[status] || status}`, true);
+        } catch (err) {
+          showMsg(msg, err.message, false);
+        }
+      });
+      return b;
+    };
+
+    // Ações só do próximo passo (fluxo padrão)
+    if (mode === "pending") {
+      actions.append(setStatus("approved", "Aprovar"), setStatus("rejected", "Recusar"));
+    } else if (mode === "approved") {
+      actions.append(setStatus("pending", "Voltar pra novos"));
+    } else if (mode === "rejected") {
+      actions.append(setStatus("pending", "Reabrir"));
+    } else if (mode === "shipped") {
+      /* sem ação — lote fechado */
+    }
+
+    card.append(head, when, body);
+    if (actions.childNodes.length) card.append(actions);
+    return card;
+  }
 
   async function refresh(day) {
     const data = await api("list", { day });
-    dayTitle.textContent = `Pitacos · ${data.day}`;
+    const stats = data.stats || {};
+    statsEl.textContent = `Lote ${data.day} · ${stats.pending || 0} novos · ${stats.approved || 0} aprovados · ${stats.shipped || 0} no ar · ${stats.rejected || 0} recusados`;
     promptEl.value = data.prompt || "";
-    listEl.innerHTML = "";
-    if (!data.tickets.length) {
-      listEl.innerHTML = '<p class="empty">Nenhum pitaco neste dia.</p>';
-      return;
-    }
+    paintPipeline(stats);
+
+    const buckets = { pending: [], approved: [], shipped: [], rejected: [] };
     for (const t of data.tickets) {
-      const card = document.createElement("article");
-      card.className = "ticket";
-      const head = document.createElement("div");
-      head.className = "ticket__head";
-      const id = document.createElement("span");
-      id.className = "ticket__id";
-      id.textContent = t.id;
-      head.append(id, statusBadge(t.status));
-      const title = document.createElement("div");
-      title.className = "ticket__title";
-      title.textContent = t.title;
-      const when = document.createElement("div");
-      when.className = "ticket__author";
-      when.textContent = t.createdAt || "";
-      const body = document.createElement("div");
-      body.className = "ticket__body";
-      body.textContent = t.body || "";
-      const actions = document.createElement("div");
-      actions.className = "row-actions";
-      const mk = (label, status, ghost) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = ghost ? "btn btn--ghost" : "btn";
-        b.textContent = label;
-        b.addEventListener("click", async () => {
-          try {
-            const res = await api("status", {
-              method: "POST",
-              body: { day: t.day, id: t.id, status },
-            });
-            promptEl.value = res.prompt || "";
-            await refresh(t.day);
-            showMsg(msg, `Pitaco ${t.id} → ${status}`, true);
-          } catch (err) {
-            showMsg(msg, err.message, false);
-          }
-        });
-        return b;
-      };
-      if (t.status !== "approved") actions.append(mk("Aprovar", "approved"));
-      if (t.status !== "rejected") actions.append(mk("Recusar", "rejected", true));
-      if (t.status !== "pending") actions.append(mk("Voltar p/ pendente", "pending", true));
-      if (t.status === "approved") actions.append(mk("Marcar no ar", "shipped", true));
-      card.append(head, title, when, body, actions);
-      listEl.appendChild(card);
+      const s = t.status || "pending";
+      if (buckets[s]) buckets[s].push(t);
     }
+
+    for (const key of Object.keys(lists)) {
+      const el = lists[key];
+      if (!el) continue;
+      el.innerHTML = "";
+      if (!buckets[key].length) {
+        const emptyMsg = {
+          pending: "Nenhum pitaco novo neste dia.",
+          approved: "Nenhum aprovado esperando implementação.",
+          shipped: "Nenhum no ar ainda neste dia.",
+          rejected: "Nenhum recusado.",
+        }[key];
+        el.innerHTML = emptyHtml(emptyMsg);
+        continue;
+      }
+      for (const t of buckets[key]) el.appendChild(renderTicket(t, key));
+    }
+
+    const approveAll = document.getElementById("btn-approve-all");
+    const shipAll = document.getElementById("btn-ship-all");
+    if (approveAll) approveAll.disabled = !(stats.pending > 0);
+    if (shipAll) shipAll.disabled = !(stats.approved > 0);
   }
 
   async function enterAdmin() {
@@ -160,7 +216,7 @@ function wireAdmin() {
     adminCard.hidden = false;
     const days = await api("days");
     daySelect.innerHTML = "";
-    const list = days.days.length ? days.days : [days.today];
+    const list = days.days.length ? [...days.days] : [days.today];
     if (!list.includes(days.today)) list.unshift(days.today);
     for (const d of list) {
       const opt = document.createElement("option");
@@ -174,10 +230,9 @@ function wireAdmin() {
 
   pinForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const pin = pinForm.pin.value;
     try {
-      await api("login", { method: "POST", body: { pin } });
-      showMsg(msg, "Entrou. Aprova os tickets do dia e copia o prompt.", true);
+      await api("login", { method: "POST", body: { pin: pinForm.pin.value } });
+      showMsg(msg, "Entrou. Siga o fluxo 1 → 5.", true);
       await enterAdmin();
     } catch (err) {
       showMsg(msg, err.message || "PIN incorreto", false);
@@ -192,13 +247,46 @@ function wireAdmin() {
     refresh(daySelect.value).catch((err) => showMsg(msg, err.message, false));
   });
 
+  document.getElementById("btn-approve-all")?.addEventListener("click", async () => {
+    try {
+      const res = await api("approve_pending", {
+        method: "POST",
+        body: { day: daySelect.value },
+      });
+      await refresh(daySelect.value);
+      showMsg(msg, res.changed ? `${res.changed} pitaco(s) aprovado(s). Vá pro passo 3.` : "Nada novo pra aprovar.", true);
+    } catch (err) {
+      showMsg(msg, err.message, false);
+    }
+  });
+
+  document.getElementById("btn-ship-all")?.addEventListener("click", async () => {
+    if (!confirm("Deploy HostGator já está verde? Isso marca todos os aprovados do dia como No ar.")) {
+      return;
+    }
+    try {
+      const res = await api("ship_approved", {
+        method: "POST",
+        body: { day: daySelect.value },
+      });
+      await refresh(daySelect.value);
+      showMsg(msg, res.changed ? `Lote fechado: ${res.changed} no ar.` : "Nenhum aprovado pra marcar.", true);
+    } catch (err) {
+      showMsg(msg, err.message, false);
+    }
+  });
+
   document.getElementById("btn-copy-prompt")?.addEventListener("click", async () => {
+    if (!promptEl.value.trim() || promptEl.value.includes("Nenhum pitaco aprovado")) {
+      showMsg(msg, "Aprove pelo menos um pitaco antes de copiar o prompt.", false);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(promptEl.value);
-      showMsg(msg, "Prompt dos pitacos copiado. Cola no Cursor Agent pra subir pra produção.", true);
+      showMsg(msg, "Prompt copiado. Cole no Cursor (passo 4). Depois do deploy verde, passo 5.", true);
     } catch {
       promptEl.select();
-      showMsg(msg, "Seleciona o texto e copia manualmente (Ctrl/Cmd+C).", false);
+      showMsg(msg, "Selecione o texto e copie (Ctrl/Cmd+C).", false);
     }
   });
 
@@ -211,7 +299,6 @@ function wireAdmin() {
     location.reload();
   });
 
-  // Sessão já aberta?
   api("days")
     .then(() => enterAdmin())
     .catch(() => {
