@@ -15,7 +15,7 @@ export class TouchControls {
   constructor(input) {
     this.input = input;
     this.enabled = false;
-    this.lookSens = 0.9;
+    this.lookSens = 1.45;
     this._joyId = null;
     this._lookId = null;
     this._lookLast = null;
