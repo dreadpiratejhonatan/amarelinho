@@ -163,8 +163,8 @@ class Game {
     });
     window.addEventListener("resize", () => this._onResize());
 
-    document.getElementById("dlg-choices")?.addEventListener("click", () => this.sfx.click());
-    document.getElementById("dlg-next")?.addEventListener("click", () => this.sfx.click());
+    document.getElementById("dlg-choices")?.addEventListener("pointerup", () => this.sfx.click());
+    document.getElementById("dlg-next")?.addEventListener("pointerup", () => this.sfx.click());
 
     const hint = document.getElementById("hud-hint");
     if (hint && isTouchDevice()) {
@@ -311,7 +311,7 @@ class Game {
 
     this.hud.showToast(
       this.input.mobile
-        ? "Stick · olhar · E — boa noite!"
+        ? "Stick pra andar · arrasta pra olhar · botão E pra falar"
         : `Bolso R$ ${this.progress.data.wallet}. Siga a missão.`,
       3600
     );
@@ -475,9 +475,9 @@ class Game {
     if (playing) {
       target = this.world.nearestInteractable(this.player.position);
       if (this.player.sitting) {
-        this.hud.setPrompt(this.input.mobile ? "E / botão — levantar" : "Esc ou E — levantar");
+        this.hud.setPrompt(this.input.mobile ? "Toque no E pra levantar" : "Esc ou E — levantar");
       } else if (target) {
-        this.hud.setPrompt(`E — ${target.label}`);
+        this.hud.setPrompt(this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`);
       } else {
         this.hud.setPrompt("");
       }
@@ -580,6 +580,7 @@ class Game {
   _talkTo(def) {
     this.input.exitLock();
     this.state = "dialogue";
+    this.touch?.hide();
     const mood = this.progress.mood(def.id);
     const greet =
       mood >= 2
@@ -625,6 +626,7 @@ class Game {
       },
       (action) => {
         this.state = "playing";
+        this.touch?.show();
         this.progress.markTalked(def.id);
         if (action?.startsWith("tip:")) {
           const ok = this.progress.tip(def.id, 5);
@@ -643,6 +645,7 @@ class Game {
   _talkToRegular(def) {
     this.input.exitLock();
     this.state = "dialogue";
+    this.touch?.hide();
     const idx = (this.progress.data.nightStoryIndex || 0) % def.stories.length;
     const story = def.stories[idx];
     this.dialogue.start(
@@ -670,6 +673,7 @@ class Game {
       },
       () => {
         this.state = "playing";
+        this.touch?.show();
         this.progress.markTalked("ze");
         this._refreshObjective();
         this.input.requestLock();
@@ -692,6 +696,7 @@ class Game {
   _orderAtCounter() {
     this.input.exitLock();
     this.state = "dialogue";
+    this.touch?.hide();
     const total = this.bill.total();
     const unpaid = this.bill.count() > 0 && !this.bill.paid;
     const choices = this._menuChoices(true).map((c) => ({
@@ -726,6 +731,7 @@ class Game {
       },
       (action) => {
         this.state = "playing";
+        this.touch?.show();
         if (action === "pay") {
           const ok = this.progress.markPaid(total);
           if (ok) {

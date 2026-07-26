@@ -8,7 +8,12 @@ export class Dialogue {
     this.open = false;
     this._onDone = null;
 
-    this.nextBtn.addEventListener("click", () => this._advance());
+    // pointerup cobre mouse + touch (click sozinho falha se algum handler chamou preventDefault)
+    this.nextBtn.addEventListener("pointerup", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      this._advance();
+    });
   }
 
   /**
@@ -51,7 +56,9 @@ export class Dialogue {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = c.label;
-        btn.addEventListener("click", () => {
+        btn.addEventListener("pointerup", (e) => {
+          if (e.button != null && e.button !== 0) return;
+          e.preventDefault();
           if (c.action) this._pendingAction = c.action;
           if (c.next) {
             this._session = { name: this._session.name, steps: Array.isArray(c.next) ? c.next : [c.next] };

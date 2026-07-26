@@ -34,7 +34,9 @@ html, body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 10;
+  /* Acima do layer de look (z=25) pra pausa/prompts receberem toque;
+     áreas vazias passam o evento (pointer-events: none). */
+  z-index: 26;
 }
 
 .hud__brand {
@@ -113,8 +115,8 @@ html, body {
   position: absolute;
   top: 16px;
   right: 18px;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   border: 1px solid rgba(255, 216, 74, 0.45);
   background: var(--panel);
@@ -124,6 +126,8 @@ html, body {
   pointer-events: auto;
   cursor: pointer;
   line-height: 1;
+  z-index: 2;
+  touch-action: manipulation;
 }
 
 .hud__hint {
@@ -424,10 +428,13 @@ body.is-touch .hud__hint {
   font-size: 14px;
   font-weight: 600;
   text-align: left;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 216, 74, 0.25);
+  min-height: 44px;
 }
 
 .dialogue__choices button:hover,
@@ -629,6 +636,25 @@ body.is-touch .prompt {
 
 body.is-touch .dialogue {
   padding: 12px 12px max(18px, env(safe-area-inset-bottom));
+  z-index: 35;
+}
+
+body.is-touch .dialogue__choices button,
+body.is-touch .dialogue__next {
+  font-size: 15px;
+  padding: 14px 14px;
+}
+
+body.is-touch .hud__pause {
+  width: 52px;
+  height: 52px;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+}
+
+/* Look layer não cobre a faixa do topo (pausa) */
+body.is-touch .touch__look {
+  top: 64px;
 }
 
 @media (max-width: 640px) {
