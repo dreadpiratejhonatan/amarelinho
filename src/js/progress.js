@@ -194,7 +194,11 @@ export class Progress {
       if (!this.data.metRegular) return "Bônus: ouça o causo do Seu Zé";
       return "Noite completa — explora ou volta ao menu";
     }
-    if (!this.talkedCount()) return "Missão: cumprimente alguém da casa (E)";
+    if (!this.talkedCount()) {
+      return document.body.classList.contains("is-touch")
+        ? "Missão: cumprimente alguém da casa (botão E)"
+        : "Missão: cumprimente alguém da casa (E)";
+    }
     if (!this.data.metCarlinhos) return "Missão: vá à cozinha e fale com o Carlinhos";
     if (!this.data.ordered) return "Missão: peça no caixa (veja o bolso!)";
     if (!this.data.sat) return "Missão: sente numa mesa e espere o pedido";

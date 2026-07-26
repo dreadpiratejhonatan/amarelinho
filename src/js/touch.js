@@ -9,6 +9,39 @@ export function isTouchDevice() {
   return coarse || noHover || (touchPoints && Math.min(window.innerWidth, window.innerHeight) <= 920);
 }
 
+/** Elementos de UI onde o look NÃO deve capturar o dedo. */
+function isUiTouchTarget(el) {
+  if (!el || !(el instanceof Element)) return false;
+  return !!el.closest(
+    [
+      "button",
+      "a",
+      "input",
+      "select",
+      "textarea",
+      "label",
+      "#dialogue",
+      "#pause",
+      "#settings",
+      "#achievements",
+      "#summary",
+      "#menu",
+      ".menu",
+      ".pause",
+      ".dialogue",
+    ].join(",")
+  );
+}
+
+function overlayBlocksLook() {
+  const ids = ["dialogue", "pause", "settings", "achievements", "summary", "menu"];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && !el.hidden) return true;
+  }
+  return false;
+}
+
 export class TouchControls {
   constructor(input) {
     this.input = input;
@@ -52,6 +85,26 @@ export class TouchControls {
   hide() {
     if (!this.root) return;
     this.root.hidden = true;
+    this._resetLook();
+    this._resetStick();
+  }
+
+  _resetStick() {
+    this._joyId = null;
+    if (this.input.analog) {
+      this.input.analog.x = 0;
+      this.input.analog.y = 0;
+    }
+    if (this.knob) this.knob.style.transform = "translate(-50%, -50%)";
+  }
+
+  _resetLook() {
+    this.btnInteract?.classList.remove("is-down");
+    this._lookId = null;
+    this._lookLast = null;
+    this._lookStart = null;
+    this._lookFromBtn = false;
+    this._lookMoved = 0;
   }
 
   _inStick(clientX, clientY) {
@@ -77,6 +130,7 @@ export class TouchControls {
     if (!zone) return;
 
     const onStart = (e) => {
+      if (this.root?.hidden || overlayBlocksLook()) return;
       const t = e.changedTouches[0];
       this._joyId = t.identifier;
       if (this._lookId === this._joyId) {
@@ -136,21 +190,33 @@ export class TouchControls {
    * Olhar na metade direita. Move/end no document (capture) pra não perder
    * o dedo ao arrastar pra direita (borda / botão E).
    * Tap curto no E = interagir; arrastar = olhar.
+   * Toques em botões/diálogos/menus são ignorados (senão o preventDefault mata o click).
    */
   _bindLook() {
     const onStart = (e) => {
       if (this.root?.hidden) return;
+      if (overlayBlocksLook()) return;
+
       for (const t of e.changedTouches) {
         if (t.identifier === this._joyId) continue;
         if (this._inStick(t.clientX, t.clientY)) continue;
+
+        const target = document.elementFromPoint(t.clientX, t.clientY) || e.target;
+        // Botão E: visual only (pointer-events:none) — continua sendo tap/arrastar
+        const onInteractBtn = this._inInteractBtn(t.clientX, t.clientY);
+        if (!onInteractBtn && isUiTouchTarget(target)) continue;
+
         // Metade esquerda livre pro stick / mão esquerda
-        if (t.clientX < window.innerWidth * 0.36) continue;
+        if (!onInteractBtn && t.clientX < window.innerWidth * 0.36) continue;
+
+        // Faixa do topo (pausa / HUD) — não rouba o dedo
+        if (!onInteractBtn && t.clientY < 72) continue;
 
         this._lookId = t.identifier;
         this._lookLast = { x: t.clientX, y: t.clientY };
         this._lookStart = { x: t.clientX, y: t.clientY };
         this._lookMoved = 0;
-        this._lookFromBtn = this._inInteractBtn(t.clientX, t.clientY);
+        this._lookFromBtn = onInteractBtn;
         if (this._lookFromBtn) this.btnInteract?.classList.add("is-down");
         e.preventDefault();
         break;
@@ -179,12 +245,7 @@ export class TouchControls {
         if (this._lookFromBtn && this._lookMoved < 16) {
           this.input.interactPressed = true;
         }
-        this.btnInteract?.classList.remove("is-down");
-        this._lookId = null;
-        this._lookLast = null;
-        this._lookStart = null;
-        this._lookFromBtn = false;
-        this._lookMoved = 0;
+        this._resetLook();
         e.preventDefault();
         break;
       }
