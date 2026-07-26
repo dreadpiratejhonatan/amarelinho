@@ -43,4 +43,4 @@ jobs:
             **/.git*
             **/.git*/**
             sugestoes/data/**
-            !sugestoes/data/.htaccess
+            sugestoes/data/**/**

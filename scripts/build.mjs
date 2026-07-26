@@ -45,17 +45,14 @@ html = html
 
 fs.writeFileSync(path.join(DIST, "index.html"), html);
 
-// Caixa de sugestões (PHP na HostGator) — copia sem a pasta data/ (tickets ficam só no servidor)
+// Caixa de sugestões (PHP na HostGator). Pasta data/ NÃO sobe no FTP —
+// o PHP cria data/ + .htaccess no primeiro envio (evita 553 no deploy).
 if (fs.existsSync("sugestoes")) {
   const sugDist = path.join(DIST, "sugestoes");
   fs.cpSync("sugestoes", sugDist, {
     recursive: true,
     filter: (src) => !src.includes(`${path.sep}data${path.sep}`) && !src.endsWith(`${path.sep}data`),
   });
-  fs.mkdirSync(path.join(sugDist, "data"), { recursive: true });
-  if (fs.existsSync("sugestoes/data/.htaccess")) {
-    fs.copyFileSync("sugestoes/data/.htaccess", path.join(sugDist, "data", ".htaccess"));
-  }
 }
 
 fs.rmSync(HOST, { recursive: true, force: true });
