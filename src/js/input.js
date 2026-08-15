@@ -9,17 +9,19 @@ export class Input {
     this.analog = { x: 0, y: 0 };
     this.interactPressed = false;
     this.escapePressed = false;
+    this.cameraTogglePressed = false;
     /** Fires when pointer lock is lost while desktop (tab switch, Alt+Tab, Esc). */
     this.onLockLost = null;
 
     window.addEventListener("keydown", (e) => {
       const k = e.code;
-      if (["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "Space", "KeyE"].includes(k)) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "Space", "KeyE", "KeyV"].includes(k)) {
         e.preventDefault();
       }
       this.keys.add(k);
       if (k === "KeyE") this.interactPressed = true;
       if (k === "Escape") this.escapePressed = true;
+      if (k === "KeyV") this.cameraTogglePressed = true;
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
 
@@ -58,6 +60,7 @@ export class Input {
     this.analog.y = 0;
     this.interactPressed = false;
     this.escapePressed = false;
+    this.cameraTogglePressed = false;
   }
 
   requestLock() {
@@ -97,6 +100,12 @@ export class Input {
   consumeEscape() {
     const v = this.escapePressed;
     this.escapePressed = false;
+    return v;
+  }
+
+  consumeCameraToggle() {
+    const v = this.cameraTogglePressed;
+    this.cameraTogglePressed = false;
     return v;
   }
 

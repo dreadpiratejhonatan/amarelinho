@@ -14,6 +14,9 @@ import { Bill, MENU, MENU_ORDER, menuChoice, isBrazilLunch } from "./menu.js";
 import { I18n } from "./i18n.js";
 import { LAYOUT, floorHeightAt } from "./layout.js";
 import { ServeProps, buildTray } from "./serveProps.js";
+import { CLIENT_CHARS, getWaiterPlayables, getPlayable } from "./playableChars.js";
+
+const STAFF_ITEMS = ["beer", "batida", "torresmo", "soda", "pastel"];
 
 class Game {
   constructor() {
@@ -55,8 +58,11 @@ class Game {
     this.serveProps = new ServeProps(this.world);
     this.world._trayBuilder = (itemId) => buildTray(itemId);
     this.player = new Player(this.camera, this.world);
+    this.player.setPlayable(this.settings.data.playableId || "cli_juca");
     this.touch = isTouchDevice() ? new TouchControls(this.input) : null;
+    this._staffJob = null;
     this._applyQuality();
+    this._initCharPicker();
 
     this.sfx.setVolume(this.settings.data.volume);
     this.sfx.setMusic(this.settings.data.music);
@@ -307,12 +313,22 @@ class Game {
     this._wasComplete = false;
     this._lastCallToast = false;
     this._deliveryPreferId = null;
+    this._clearStaffJob();
     this.serveProps.clearAll();
     this.world._sessionT = 0;
     this.world.nightPhase = 0;
     this.world._rainSeed = Math.random();
     this._applyQuality();
     this._pickNightEvent();
+
+    const playable = getPlayable(this.settings.data.playableId || "cli_juca");
+    this.player.setPlayable(playable);
+    this.progress.beginNightAs(playable);
+    if (playable.role === "waiter") {
+      this.world.setPlayerWaiterId(playable.id);
+    } else {
+      this.world.setPlayerWaiterId(null);
+    }
 
     this.menu.hidden = true;
     this.menu.setAttribute("aria-hidden", "true");
@@ -336,13 +352,18 @@ class Game {
     this._refreshMoney();
     this._startTutorial();
 
+    const staff = this.progress.isStaffNight();
     this.hud.showToast(
       this.input.mobile
-        ? "Stick esquerdo anda · stick direito olha · E pra falar"
-        : `Bolso R$ ${this.progress.data.wallet}. Siga a missão.`,
+        ? staff
+          ? "Turno: atenda mesas · E anota · V troca câmera"
+          : "Stick esquerdo anda · stick direito olha · E pra falar"
+        : staff
+          ? `Turno de ${playable.name}. Sirva 3 mesas. V — 1ª/3ª.`
+          : `Bolso R$ ${this.progress.data.wallet}. V — 1ª/3ª. Siga a missão.`,
       3200
     );
-    if (this._nightEventLabel) {
+    if (this._nightEventLabel && !staff) {
       setTimeout(() => {
         if (this.state === "playing") this.hud.showToast(this._nightEventLabel, 3800);
       }, 3400);
@@ -398,6 +419,12 @@ class Game {
   }
 
   _startTutorial() {
+    if (this.progress.isStaffNight()) {
+      this._tutorialStep = 3;
+      this._guideTimer = 14;
+      this.hud.setGuide(true, "① Clientes sentados pedem — E anota · caixa/cozinha busca · entrega");
+      return;
+    }
     if (this.settings.data.seenTutorial && this.settings.data.tutorialDone) {
       this._tutorialStep = 3;
       this._guideTimer = 6;
@@ -469,6 +496,8 @@ class Game {
     this.input.exitLock();
     this.input.clearHeld();
     this.player.standUp();
+    this._clearStaffJob();
+    this.world.setPlayerWaiterId(null);
     this.state = "menu";
     this.menu.hidden = false;
     this.menu.setAttribute("aria-hidden", "false");
@@ -559,6 +588,13 @@ class Game {
     if (canLook || this.player.sitting) this.touch?.update?.(dt);
     this.player.update(dt, this.input, canMove && !this.player.sitting, canLook, lookOpts);
 
+    if (playing && this.input.consumeCameraToggle()) {
+      const mode = this.player.toggleCameraMode();
+      this.hud.showToast(mode === "third" ? "Câmera: 3ª pessoa" : "Câmera: 1ª pessoa", 1400);
+    } else {
+      this.input.consumeCameraToggle();
+    }
+
     if (this._guideTimer > 0) {
       this._guideTimer -= dt;
       if (this._guideTimer <= 0) this.hud.setGuide(false);
@@ -596,15 +632,20 @@ class Game {
 
     let target = null;
     if (playing) {
-      target = this.world.nearestInteractable(this.player.position);
-      if (this.player.sitting) {
+      if (this.progress.isStaffNight()) {
+        this.world.updateStaffOrders(dt);
+        this._updateStaffPrompt();
+      } else if (this.player.sitting) {
         this.hud.setPrompt(this.input.mobile ? "Toque no E pra levantar" : "Esc ou E — levantar");
-      } else if (target) {
-        this.hud.setPrompt(this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`);
-        this.touch?.setPromptActive(true);
       } else {
-        this.hud.setPrompt("");
-        this.touch?.setPromptActive(false);
+        target = this.world.nearestInteractable(this.player.position);
+        if (target) {
+          this.hud.setPrompt(this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`);
+          this.touch?.setPromptActive(true);
+        } else {
+          this.hud.setPrompt("");
+          this.touch?.setPromptActive(false);
+        }
       }
     } else {
       this.hud.setPrompt("");
@@ -612,7 +653,9 @@ class Game {
     }
 
     if (playing && this.input.consumeInteract()) {
-      if (this.player.sitting) {
+      if (this.progress.isStaffNight()) {
+        this._staffInteract();
+      } else if (this.player.sitting) {
         this.player.standUp();
         this.sfx.sit();
         this.hud.showToast("Levantou da mesa.", 1600);
@@ -638,6 +681,172 @@ class Game {
           this.world.nightPhase > 0.85 ? 0.7 : 1 + this.world.nightPhase * 0.35
         );
       }
+    }
+  }
+
+  _initCharPicker() {
+    const clientsEl = document.getElementById("picker-clients");
+    const waitersEl = document.getElementById("picker-waiters");
+    const selEl = document.getElementById("picker-sel");
+    if (!clientsEl || !waitersEl) return;
+
+    const hex = (n) => `#${(n >>> 0).toString(16).padStart(6, "0")}`;
+    const selected = this.settings.data.playableId || "cli_juca";
+
+    const makeCard = (p, color) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "char-picker__card";
+      btn.dataset.id = p.id;
+      btn.setAttribute("role", "option");
+      btn.innerHTML = `<span class="char-picker__swatch" style="background:${hex(color)}"></span><span class="char-picker__name">${p.name}</span><span class="char-picker__blurb">${p.blurb || ""}</span>`;
+      if (p.id === selected) btn.classList.add("is-selected");
+      btn.addEventListener("click", () => {
+        this.settings.set("playableId", p.id);
+        clientsEl.querySelectorAll(".char-picker__card").forEach((c) => c.classList.remove("is-selected"));
+        waitersEl.querySelectorAll(".char-picker__card").forEach((c) => c.classList.remove("is-selected"));
+        btn.classList.add("is-selected");
+        if (selEl) {
+          selEl.textContent =
+            p.role === "waiter" ? `Turno: ${p.name}` : `Cliente: ${p.name}`;
+        }
+        this.sfx.click();
+      });
+      return btn;
+    };
+
+    for (const c of CLIENT_CHARS) {
+      clientsEl.appendChild(makeCard(c, c.shirt || c.skin || 0xc9a000));
+    }
+    for (const w of getWaiterPlayables()) {
+      waitersEl.appendChild(makeCard(w, w.def?.skin || 0xc9a000));
+    }
+    const cur = getPlayable(selected);
+    if (selEl) {
+      selEl.textContent =
+        cur.role === "waiter" ? `Turno: ${cur.name}` : `Cliente: ${cur.name}`;
+    }
+  }
+
+  _clearStaffJob() {
+    if (this._staffJob?.tray && this.player.mesh) {
+      this.player.mesh.remove(this._staffJob.tray);
+    }
+    this._staffJob = null;
+  }
+
+  _attachStaffTray(itemId) {
+    if (!this.player.mesh) return;
+    if (this._staffJob?.tray) this.player.mesh.remove(this._staffJob.tray);
+    const tray = buildTray(itemId);
+    this.player.mesh.add(tray);
+    if (this._staffJob) this._staffJob.tray = tray;
+  }
+
+  _updateStaffPrompt() {
+    const job = this._staffJob;
+    const pos = this.player.position;
+    let prompt = "";
+    let active = false;
+
+    if (!job) {
+      const hungry = this.world.nearestHungryCustomer(pos);
+      if (hungry) {
+        prompt = this.input.mobile ? "Toque no E — anotar pedido" : "E — anotar pedido";
+        active = true;
+      } else {
+        const target = this.world.nearestInteractable(pos);
+        if (target && target.kind !== "seat") {
+          prompt = this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`;
+          active = true;
+        } else {
+          prompt = this.input.mobile ? "Procure mesas pedindo" : "Procure clientes pedindo (Garçom!)";
+        }
+      }
+    } else if (job.phase === "fetch") {
+      if (this.world.inStaffPickupZone(pos)) {
+        prompt = this.input.mobile ? "Toque no E — pegar pedido" : "E — pegar no balcão/cozinha";
+        active = true;
+      } else {
+        prompt = "Vá ao caixa ou à cozinha";
+      }
+    } else if (job.phase === "deliver") {
+      const cust = job.customer;
+      const d = cust?.mesh ? pos.distanceTo(cust.mesh.position) : 99;
+      if (d < 2.6) {
+        prompt = this.input.mobile ? "Toque no E — entregar" : "E — entregar pedido";
+        active = true;
+      } else {
+        prompt = "Volte à mesa do cliente";
+      }
+    }
+
+    this.hud.setPrompt(prompt);
+    this.touch?.setPromptActive(active);
+  }
+
+  _staffInteract() {
+    const pos = this.player.position;
+    const job = this._staffJob;
+
+    if (!job) {
+      const hungry = this.world.nearestHungryCustomer(pos);
+      if (hungry) {
+        const itemId = STAFF_ITEMS[Math.floor(Math.random() * STAFF_ITEMS.length)];
+        hungry._wantsOrder = false;
+        hungry._orderWait = 0;
+        hungry.say?.("Pode ser!", 2);
+        this._staffJob = { phase: "fetch", customer: hungry, itemId, tray: null };
+        this.sfx.click();
+        const name = MENU[itemId]?.name || "pedido";
+        this.hud.showToast(`Anotado: ${name}. Busca no caixa ou cozinha.`, 2800);
+        this._refreshObjective();
+        return;
+      }
+      const target = this.world.nearestInteractable(pos);
+      if (target && target.kind !== "seat") {
+        this._interact(target);
+        return;
+      }
+      this.hud.showToast("Espere um cliente sentado pedir.", 2000);
+      return;
+    }
+
+    if (job.phase === "fetch") {
+      if (!this.world.inStaffPickupZone(pos)) {
+        this.hud.showToast("Vá até o caixa (azul) ou a cozinha.", 2200);
+        return;
+      }
+      this._attachStaffTray(job.itemId);
+      job.phase = "deliver";
+      this.sfx.glass();
+      this.hud.showToast("Pedido na bandeja — leve até a mesa.", 2400);
+      return;
+    }
+
+    if (job.phase === "deliver") {
+      const cust = job.customer;
+      if (!cust?.mesh || pos.distanceTo(cust.mesh.position) > 2.6) {
+        this.hud.showToast("Chegue mais perto da mesa.", 1800);
+        return;
+      }
+      if (cust.seat) this.serveProps.placeAtSeat(job.itemId, cust.seat);
+      cust._servedByPlayer = true;
+      cust._wantsOrder = false;
+      cust.say?.("Valeu!", 2);
+      if (job.tray && this.player.mesh) this.player.mesh.remove(job.tray);
+      this._staffJob = null;
+      this.sfx.order();
+      const tip = 4 + Math.floor(Math.random() * 5);
+      this.progress.earn(tip);
+      this.progress.markStaffServe(this.progress.data.staffWaiterId);
+      this._refreshMoney();
+      this._refreshObjective();
+      const n = this.progress.data.staffServes || 0;
+      this.hud.showToast(
+        n >= 3 ? `Turno fechado! Gorjeta R$ ${tip}.` : `Entregue! +R$ ${tip} · ${n}/3`,
+        2800
+      );
     }
   }
 

@@ -46,6 +46,7 @@ export class TouchControls {
     this.lookStick = document.getElementById("touch-look-stick");
     this.lookKnob = document.getElementById("touch-look-knob");
     this.btnInteract = document.getElementById("touch-interact");
+    this.btnCam = document.getElementById("touch-cam");
 
     if (!this.root) return;
 
@@ -60,6 +61,7 @@ export class TouchControls {
     this._bindMoveStick();
     this._bindLookStick();
     this._bindInteractButton();
+    this._bindCamButton();
   }
 
   show() {
@@ -374,6 +376,24 @@ export class TouchControls {
     document.addEventListener("pointermove", onPointerMove, { capture: true });
     document.addEventListener("pointerup", onPointerUp, { capture: true });
     document.addEventListener("pointercancel", onPointerUp, { capture: true });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
+  _bindCamButton() {
+    const btn = this.btnCam;
+    if (!btn) return;
+    const fire = (e) => {
+      if (this.root?.hidden || overlayBlocksLook()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.input.cameraTogglePressed = true;
+      btn.classList.add("is-down");
+      setTimeout(() => btn.classList.remove("is-down"), 120);
+    };
+    btn.addEventListener("pointerup", fire);
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();

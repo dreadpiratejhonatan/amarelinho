@@ -9,6 +9,7 @@ const DEFAULTS = {
   tutorialDone: false,
   lang: "pt",
   quality: "auto",
+  playableId: "cli_juca",
 };
 
 export class Settings {

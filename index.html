@@ -13,9 +13,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="src/styles/styles.css?v=v31" />
+  <link rel="stylesheet" href="src/styles/styles.css?v=v32" />
   <script>
-    window.AMA_BUILD = "v31";
+    window.AMA_BUILD = "v32";
     console.info("[Amarelinho] build", window.AMA_BUILD);
   </script>
   <script type="importmap">
@@ -41,7 +41,7 @@
       <div id="hud-bill" class="hud__bill" hidden></div>
       <div id="hud-guide" class="hud__guide" hidden></div>
       <button type="button" id="btn-pause" class="hud__pause" aria-label="Pausar">Ⅱ</button>
-      <div class="hud__hint" id="hud-hint">WASD mover · mouse olhar · E interagir · Esc pausar</div>
+      <div class="hud__hint" id="hud-hint">WASD mover · mouse olhar · E interagir · V 1ª/3ª · Esc pausar</div>
     </div>
 
     <div id="pause" class="pause" hidden>
@@ -125,10 +125,17 @@
 
     <div id="menu" class="menu" aria-hidden="false">
       <div class="menu__bg" aria-hidden="true"></div>
-      <div class="menu__card">
+      <div class="menu__card menu__card--wide">
         <p class="menu__kicker">Uma noite no boteco</p>
         <h1 class="menu__title">AMARELINHO<br /><span class="menu__title-sub">DAS BATIDAS</span></h1>
-        <p class="menu__sub">Chegue na calçada, converse com a galera do bar e peça uma gelada.</p>
+        <p class="menu__sub">Escolha quem você é — cliente na noite ou turno na casa.</p>
+        <div class="char-picker" id="char-picker">
+          <p class="char-picker__label">Fregueses</p>
+          <div class="char-picker__row" id="picker-clients" role="listbox" aria-label="Clientes"></div>
+          <p class="char-picker__label">Turno na casa</p>
+          <div class="char-picker__row" id="picker-waiters" role="listbox" aria-label="Garçons"></div>
+          <p class="char-picker__sel" id="picker-sel"></p>
+        </div>
         <button type="button" class="menu__btn" id="btn-play">Entrar no bar</button>
         <a class="menu__link" id="btn-suggest-menu" href="pitacos/">Mandar um pitaco</a>
         <p class="menu__cast">Toninho · Fabin · Seu Oliveira · Val · Ney · Carlinhos · Seu Zé</p>
@@ -142,9 +149,10 @@
       <div id="touch-look-stick" class="touch__stick touch__stick--look" aria-label="Olhar">
         <div id="touch-look-knob" class="touch__knob"></div>
       </div>
+      <button type="button" id="touch-cam" class="touch__btn touch__btn--cam" aria-label="Câmera 1ª/3ª">V</button>
       <button type="button" id="touch-interact" class="touch__btn" aria-label="Interagir">E</button>
     </div>
   </div>
 
-  <script type="module" src="src/js/main.js?v=v31"></script></body>
+  <script type="module" src="src/js/main.js?v=v32"></script></body>
 </html>
