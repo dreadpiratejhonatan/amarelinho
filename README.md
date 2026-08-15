@@ -1,6 +1,6 @@
 # Amarelinho — Noite no boteco
 
-Jogo 3D no navegador (Three.js): uma noite no **Amarelinho**, boteco inspirado num bar real. Ande pela calçada, converse com os garçons, sente numa mesa e peça no balcão.
+Jogo 3D no navegador (Three.js): uma noite no **Amarelinho**, boteco inspirado num bar real. Ande pela calçada, converse com os garçons (cada um tem uma história), sente numa mesa, peça no balcão e veja o pedido chegar na bandeja.
 
 | Onde | URL |
 | --- | --- |

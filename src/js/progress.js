@@ -29,6 +29,8 @@ const DEFAULT = () => ({
   bestNightSpent: 0,
   totalRounds: 0,
   nightStoryIndex: 0,
+  waiterBeats: {},
+  neyHintZe: false,
 });
 
 export class Progress {
@@ -89,6 +91,30 @@ export class Progress {
     return true;
   }
 
+  markBeat(waiterId) {
+    if (!this.data.waiterBeats) this.data.waiterBeats = {};
+    this.data.waiterBeats[waiterId] = true;
+    this._syncAchievements();
+  }
+
+  hasBeat(waiterId) {
+    return !!(this.data.waiterBeats && this.data.waiterBeats[waiterId]);
+  }
+
+  beatsCount() {
+    const ids = ["toninho", "fabin", "oliveira", "val", "ney", "carlinhos"];
+    return ids.filter((id) => this.hasBeat(id)).length;
+  }
+
+  allBeatsDone() {
+    return this.beatsCount() >= 6;
+  }
+
+  markNeyHint() {
+    this.data.neyHintZe = true;
+    this.save();
+  }
+
   mood(waiterId) {
     return this.data.waiterMood[waiterId] || 0;
   }
@@ -100,11 +126,37 @@ export class Progress {
     this.save();
   }
 
-  serveDelayFactor() {
-    const moods = Object.values(this.data.waiterMood);
-    if (!moods.length) return 1;
-    const avg = moods.reduce((a, b) => a + b, 0) / moods.length;
-    return Math.max(0.55, 1 - avg * 0.12);
+  serveDelayFactor(waiterId = null) {
+    let mood = 0;
+    if (waiterId) {
+      mood = this.data.waiterMood[waiterId] || 0;
+    } else {
+      const moods = Object.values(this.data.waiterMood);
+      if (!moods.length) return 1;
+      mood = moods.reduce((a, b) => a + b, 0) / moods.length;
+    }
+    return Math.max(0.45, 1.15 - mood * 0.18);
+  }
+
+  /** Chance de demora/recusa quando humor baixo. */
+  serveBusyChance(waiterId) {
+    const mood = this.mood(waiterId);
+    if (mood <= 0) return 0.28;
+    if (mood === 1) return 0.12;
+    return 0.02;
+  }
+
+  bestMoodWaiterId(ids = ["toninho", "fabin", "oliveira", "val", "ney"]) {
+    let best = ids[0];
+    let bestM = -1;
+    for (const id of ids) {
+      const m = this.mood(id);
+      if (m > bestM) {
+        bestM = m;
+        best = id;
+      }
+    }
+    return bestM >= 2 ? best : null;
   }
 
   markTalked(id) {
@@ -161,6 +213,8 @@ export class Progress {
     this.data.paid = false;
     this.data.metCarlinhos = false;
     this.data.nightComplete = false;
+    this.data.waiterBeats = {};
+    this.data.neyHintZe = false;
     this.data.nightStoryIndex = (this.data.nightStoryIndex || 0) + 1;
     this.save();
   }
@@ -198,6 +252,7 @@ export class Progress {
     if (this.data.nightComplete) {
       if (this.batidasCount() < 4) return "Bônus: prove as 4 batidas do cardápio";
       if (!this.allWaitersTalked()) return "Bônus: converse com todos os garçons";
+      if (this.beatsCount() < 6) return `Bônus: histórias da casa (${this.beatsCount()}/6)`;
       if (!this.data.metRegular) return "Bônus: ouça o causo do Seu Zé";
       return "Noite completa — explora ou volta ao menu";
     }
@@ -226,6 +281,7 @@ export class Progress {
       wallet: wallet ?? this.data.wallet,
       tips: this.data.tipsGiven,
       batidas: this.batidasCount(),
+      beats: this.beatsCount(),
       achievements: Object.keys(this.data.achievements || {}).length,
     };
   }

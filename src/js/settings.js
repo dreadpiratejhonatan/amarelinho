@@ -6,7 +6,9 @@ const DEFAULTS = {
   volume: 0.7,
   music: true,
   seenTutorial: false,
+  tutorialDone: false,
   lang: "pt",
+  quality: "auto",
 };
 
 export class Settings {

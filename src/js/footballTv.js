@@ -45,6 +45,7 @@ export function createFootballTv(w = 1.35, h = 0.78) {
     cheerUntil: 0,
     banner: "",
     bannerUntil: 0,
+    goalBoost: 1,
   };
 
   let onEvent = null;
@@ -100,19 +101,20 @@ export function createFootballTv(w = 1.35, h = 0.78) {
       state.ball.vx = (state.ball.x - near.x) * 0.08 + (Math.random() - 0.5);
       state.ball.vy = (state.ball.y - near.y) * 0.08 + (Math.random() - 0.5);
       const r = Math.random();
-      if (r < 0.07) {
-        const homeScores = Math.random() < 0.5;
+      const goalChance = 0.07 * (state.goalBoost || 1);
+      if (r < goalChance) {
+        const homeScores = Math.random() < 0.55;
         if (homeScores) state.scoreH = Math.min(9, state.scoreH + 1);
         else state.scoreA = Math.min(9, state.scoreA + 1);
         state.cheerUntil = state.clock + 90;
         state.banner = "GOOOOL!";
         state.bannerUntil = state.clock + 90;
         emit("goal", homeScores ? "AMA" : "VIS");
-      } else if (r < 0.14) {
+      } else if (r < goalChance + 0.07) {
         state.banner = "QUASE!";
         state.bannerUntil = state.clock + 50;
         emit("almost", Math.random() < 0.5 ? "AMA" : "VIS");
-      } else if (r < 0.17) {
+      } else if (r < goalChance + 0.1) {
         state.banner = "UHHH…";
         state.bannerUntil = state.clock + 45;
         emit("boo", Math.random() < 0.5 ? "AMA" : "VIS");
@@ -160,6 +162,9 @@ export function createFootballTv(w = 1.35, h = 0.78) {
     },
     setOnEvent(cb) {
       onEvent = cb;
+    },
+    setGoalBoost(mult) {
+      state.goalBoost = Math.max(0.5, Math.min(3, mult));
     },
   };
 }

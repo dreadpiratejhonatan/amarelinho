@@ -78,6 +78,11 @@ export class TouchControls {
     this._resetMoveStick();
     this._resetLookStick();
     this._resetBtn();
+    this.setPromptActive(false);
+  }
+
+  setPromptActive(on) {
+    this.btnInteract?.classList.toggle("is-prompt", !!on);
   }
 
   /** Aplica o stick de câmera a cada frame (segurar = continuar virando). */
@@ -241,8 +246,15 @@ export class TouchControls {
   _updateMoveStick(x, y) {
     const dx = x - this._origin.x;
     const dy = y - this._origin.y;
-    const max = 62;
+    const max = 72;
+    const dead = 10;
     const len = Math.hypot(dx, dy) || 1;
+    if (len < dead) {
+      this.input.analog.x = 0;
+      this.input.analog.y = 0;
+      if (this.knob) this.knob.style.transform = "translate(-50%, -50%)";
+      return;
+    }
     const clamped = Math.min(len, max);
     const nx = (dx / len) * clamped;
     const ny = (dy / len) * clamped;

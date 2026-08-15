@@ -31,6 +31,17 @@ export const WAITERS = [
       ],
       tipThanks: ["…obrigado. Raro.", "Hm. Valeu."],
     },
+    beat: {
+      id: "toninho_smile",
+      label: "Tentar fazê-lo sorrir",
+      needMood: 1,
+      steps: {
+        open: "Sorrir? Eu? …olha, se você der uma gorjeta decente, eu finjo que pensei nisso.",
+        tipPath: "…tá. (quase) sorri. Não conta pra ninguém.",
+        tipFail: "Sem grana, sem sorriso. Lógica simples.",
+        rare: "…ok. Você ganhou. Um sorrisinho. Só hoje.",
+      },
+    },
   },
   {
     id: "fabin",
@@ -61,6 +72,18 @@ export const WAITERS = [
       ],
       tipThanks: ["Valeu demais, campeão!", "Gorjeta? Você é o cara!"],
     },
+    beat: {
+      id: "fabin_promo",
+      label: "Ouvir a promoção da casa",
+      needMood: 0,
+      steps: {
+        open: "Promoção da casa: uma água… ou você topa a batida especial com desconto de amigo?",
+        accept: "Fechou! Batida especial saindo — e o sorriso vem de brinde.",
+        refuse: "Tranquilo! A oferta fica de pé. Qualquer hora.",
+      },
+      giftItem: "batida_especial",
+      giftPrice: 12,
+    },
   },
   {
     id: "oliveira",
@@ -90,6 +113,16 @@ export const WAITERS = [
         "Seu Zé conta o mesmo causo há anos — e a gente ainda ri.",
       ],
       tipThanks: ["Que Deus te abençoe.", "Obrigado, meu filho."],
+    },
+    beat: {
+      id: "oliveira_story",
+      label: "Ouvir o causo da calçada",
+      needMood: 0,
+      steps: {
+        open: "Quer o causo completo da calçada? É longo… mas vale.",
+        mid: "Choveu, o toldo amarelo balançou, e um casal pediu porção no meio do temporal.",
+        end: "Quando parou a chuva, eles ainda estavam aqui. O Amarelinho segura a gente assim.",
+      },
     },
   },
   {
@@ -122,6 +155,15 @@ export const WAITERS = [
       ],
       tipThanks: ["Valeu.", "Fechou. Agradeço."],
     },
+    beat: {
+      id: "val_jukebox",
+      label: "Pedir pra consertar o clima",
+      needMood: 0,
+      steps: {
+        open: "Jukebox engasgou de novo? Deixa comigo — eu conheço o cabo.",
+        fixed: "Pronto. Estação trocada. Se a batida falhar agora, culpa o destino.",
+      },
+    },
   },
   {
     id: "ney",
@@ -152,6 +194,17 @@ export const WAITERS = [
       ],
       tipThanks: ["Ô, obrigado, meu amigo!", "Você tem coração bom."],
     },
+    beat: {
+      id: "ney_memory",
+      label: "Perguntar sobre o Seu Zé",
+      needMood: 0,
+      steps: {
+        open: "Seu Zé? Freguês de carteirinha. Senta na calçada e conta o mesmo causo… com detalhes novos.",
+        mid: "Ele conhece o Amarelinho desde antes dessa TV. Diz que o amarelo das paredes nunca murcha.",
+        end: "Vai lá falar com ele. Diz que o Ney mandou. Ele abre o baú de histórias.",
+      },
+      unlockRegularHint: true,
+    },
   },
   {
     id: "carlinhos",
@@ -161,6 +214,7 @@ export const WAITERS = [
     hairStyle: "cap",
     face: "neutral",
     height: 1.0,
+    capColor: 0x1a1a1a,
     lines: {
       greet: [
         "E aí. Cozinha quente — o que precisa?",
@@ -183,6 +237,16 @@ export const WAITERS = [
         "O cheiro sobe pro salão elevado. Marketing gratuito.",
       ],
       tipThanks: ["Valeu, brother.", "Gorjeta na cozinha? Raro. Obrigado."],
+    },
+    beat: {
+      id: "carlinhos_secret",
+      label: "Pedir o segredo da cozinha",
+      needMood: 0,
+      steps: {
+        open: "Segredo da casa? Posso mandar torresmo… ou o bolinho que só sai pra quem pergunta certo.",
+        torresmo: "Torresmo na chapa. Crocante. Não conta pro Toninho que eu dei preferência.",
+        bolinho: "Bolinho de bacalhau. Receita antiga. Come quente.",
+      },
     },
   },
 ];
@@ -265,13 +329,13 @@ function makeNametag(name) {
   canvas.width = 256;
   canvas.height = 64;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "rgba(12, 8, 2, 0.82)";
-  ctx.fillRect(8, 8, 240, 48);
+  ctx.fillStyle = "rgba(8, 5, 0, 0.9)";
+  ctx.fillRect(6, 6, 244, 52);
   ctx.strokeStyle = "#ffd84a";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(10, 10, 236, 44);
-  ctx.fillStyle = "#ffd84a";
-  ctx.font = "bold 28px Bebas Neue, Arial Black, sans-serif";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(8, 8, 240, 48);
+  ctx.fillStyle = "#fff6d6";
+  ctx.font = "bold 30px Bebas Neue, Arial Black, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(name.toUpperCase(), 128, 34);
@@ -280,8 +344,8 @@ function makeNametag(name) {
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true })
   );
-  sprite.scale.set(1.15, 0.28, 1);
-  sprite.position.y = 2.15;
+  sprite.scale.set(1.25, 0.32, 1);
+  sprite.position.y = 2.2;
   return sprite;
 }
 
@@ -353,73 +417,120 @@ function makeLogoBadge() {
 }
 
 function addFaceAndHair(bodyRoot, def) {
-  const head = sphere(0.18, def.skin);
+  const head = sphere(0.19, def.skin);
   head.position.y = 1.52;
   bodyRoot.add(head);
 
-  const eyeL = sphere(0.03, 0xf5f5f5);
-  eyeL.position.set(-0.06, 1.54, 0.15);
+  // Orelhas
+  const earL = sphere(0.045, def.skin);
+  earL.position.set(-0.18, 1.52, 0.02);
+  const earR = earL.clone();
+  earR.position.x = 0.18;
+  bodyRoot.add(earL, earR);
+
+  const eyeL = sphere(0.032, 0xf5f5f5);
+  eyeL.position.set(-0.065, 1.545, 0.155);
   const eyeR = eyeL.clone();
-  eyeR.position.x = 0.06;
+  eyeR.position.x = 0.065;
   bodyRoot.add(eyeL, eyeR);
-  const pupilL = sphere(0.015, 0x1a1a1a);
-  pupilL.position.set(-0.06, 1.54, 0.17);
+  const pupilL = sphere(0.016, 0x1a1a1a);
+  pupilL.position.set(-0.065, 1.545, 0.178);
   const pupilR = pupilL.clone();
-  pupilR.position.x = 0.06;
+  pupilR.position.x = 0.065;
   bodyRoot.add(pupilL, pupilR);
 
+  // Nariz
+  const nose = box(0.04, 0.05, 0.05, def.skin);
+  nose.position.set(0, 1.5, 0.175);
+  bodyRoot.add(nose);
+
   if (def.face === "grumpy") {
-    const brow = box(0.24, 0.035, 0.04, 0x2a1a10);
-    brow.position.set(0, 1.6, 0.15);
-    brow.rotation.z = 0.2;
-    bodyRoot.add(brow);
-    const mouth = box(0.1, 0.025, 0.03, 0x5a2030);
-    mouth.position.set(0, 1.43, 0.165);
+    const browL = box(0.12, 0.04, 0.04, 0x2a1a10);
+    browL.position.set(-0.07, 1.61, 0.16);
+    browL.rotation.z = 0.35;
+    const browR = box(0.12, 0.04, 0.04, 0x2a1a10);
+    browR.position.set(0.07, 1.61, 0.16);
+    browR.rotation.z = -0.35;
+    bodyRoot.add(browL, browR);
+    const mouth = box(0.11, 0.028, 0.03, 0x5a2030);
+    mouth.position.set(0, 1.425, 0.17);
     mouth.rotation.z = Math.PI;
     bodyRoot.add(mouth);
   } else if (def.face === "smile") {
-    const mouth = box(0.14, 0.03, 0.03, 0x8a3040);
-    mouth.position.set(0, 1.44, 0.17);
+    const browL = box(0.1, 0.025, 0.03, 0x3b2414);
+    browL.position.set(-0.07, 1.6, 0.155);
+    browL.rotation.z = -0.15;
+    const browR = browL.clone();
+    browR.position.x = 0.07;
+    browR.rotation.z = 0.15;
+    bodyRoot.add(browL, browR);
+    const mouth = box(0.16, 0.035, 0.035, 0x8a3040);
+    mouth.position.set(0, 1.435, 0.175);
     bodyRoot.add(mouth);
-    const cheekL = sphere(0.035, 0xe09080);
-    cheekL.position.set(-0.11, 1.48, 0.14);
+    const cheekL = sphere(0.04, 0xe09080);
+    cheekL.position.set(-0.12, 1.48, 0.145);
     const cheekR = cheekL.clone();
-    cheekR.position.x = 0.11;
+    cheekR.position.x = 0.12;
     bodyRoot.add(cheekL, cheekR);
   } else if (def.face === "kind") {
-    const mouth = box(0.1, 0.022, 0.03, 0x7a4050);
-    mouth.position.set(0, 1.445, 0.16);
+    const mouth = box(0.11, 0.025, 0.03, 0x7a4050);
+    mouth.position.set(0, 1.44, 0.165);
     bodyRoot.add(mouth);
+    const wrinkle = box(0.2, 0.015, 0.02, 0x000000);
+    wrinkle.material = mat(def.skin, { roughness: 0.9 });
+    wrinkle.position.set(0, 1.58, 0.15);
+    bodyRoot.add(wrinkle);
   } else {
-    const mouth = box(0.08, 0.02, 0.03, 0x6a4050);
-    mouth.position.set(0, 1.445, 0.16);
+    const mouth = box(0.09, 0.022, 0.03, 0x6a4050);
+    mouth.position.set(0, 1.44, 0.165);
     bodyRoot.add(mouth);
   }
 
   if (def.hairStyle === "cap") {
-    const cap = box(0.4, 0.12, 0.42, def.capColor ?? 0x1a1a1a);
-    cap.position.set(0, 1.7, 0.02);
+    const cap = box(0.42, 0.14, 0.44, def.capColor ?? 0x1a1a1a);
+    cap.position.set(0, 1.72, 0.02);
     bodyRoot.add(cap);
-    const bill = box(0.24, 0.045, 0.2, 0x222222);
-    bill.position.set(0, 1.65, 0.24);
+    const bill = box(0.28, 0.05, 0.22, 0x111111);
+    bill.position.set(0, 1.66, 0.26);
     bodyRoot.add(bill);
+    // Cabelo sob o boné
+    const side = box(0.08, 0.1, 0.1, def.hair);
+    side.position.set(-0.18, 1.58, 0);
+    const sideR = side.clone();
+    sideR.position.x = 0.18;
+    bodyRoot.add(side, sideR);
   } else if (def.hairStyle === "medium") {
-    const hair = box(0.38, 0.26, 0.36, def.hair);
-    hair.position.set(0, 1.64, -0.02);
+    const hair = box(0.4, 0.3, 0.38, def.hair);
+    hair.position.set(0, 1.66, -0.02);
     bodyRoot.add(hair);
-    const sideL = box(0.09, 0.24, 0.14, def.hair);
-    sideL.position.set(-0.2, 1.5, 0.02);
+    const sideL = box(0.1, 0.28, 0.16, def.hair);
+    sideL.position.set(-0.22, 1.48, 0.02);
     const sideR = sideL.clone();
-    sideR.position.x = 0.2;
+    sideR.position.x = 0.22;
     bodyRoot.add(sideL, sideR);
+    const back = box(0.32, 0.22, 0.12, def.hair);
+    back.position.set(0, 1.48, -0.18);
+    bodyRoot.add(back);
   } else if (def.hairStyle === "short-white" || def.hairStyle === "short") {
-    const hair = box(0.35, 0.11, 0.33, def.hair);
-    hair.position.set(0, 1.67, -0.01);
+    const hair = box(0.36, 0.12, 0.34, def.hair);
+    hair.position.set(0, 1.68, -0.01);
     bodyRoot.add(hair);
+    if (def.hairStyle === "short-white") {
+      const sideL = box(0.07, 0.12, 0.1, def.hair);
+      sideL.position.set(-0.18, 1.55, 0.02);
+      const sideR = sideL.clone();
+      sideR.position.x = 0.18;
+      bodyRoot.add(sideL, sideR);
+    }
   } else if (def.hairStyle === "baldish") {
-    const fringe = box(0.22, 0.06, 0.12, def.hair);
-    fringe.position.set(0, 1.65, -0.1);
+    const fringe = box(0.2, 0.05, 0.1, def.hair);
+    fringe.position.set(0, 1.66, -0.12);
     bodyRoot.add(fringe);
+    const sideL = box(0.06, 0.08, 0.08, def.hair);
+    sideL.position.set(-0.16, 1.55, -0.05);
+    const sideR = sideL.clone();
+    sideR.position.x = 0.16;
+    bodyRoot.add(sideL, sideR);
   }
 }
 
@@ -432,20 +543,44 @@ export function buildWaiterMesh(def) {
   bodyRoot.scale.setScalar(scale);
   root.add(bodyRoot);
 
-  const body = box(0.42, 0.62, 0.24, 0x151515);
+  // Polo preto
+  const body = box(0.44, 0.64, 0.26, 0x121212);
   body.position.y = 1.05;
   bodyRoot.add(body);
+  // Gola do polo
+  const collar = box(0.28, 0.06, 0.18, 0x0a0a0a);
+  collar.position.set(0, 1.35, 0.08);
+  bodyRoot.add(collar);
   bodyRoot.add(makeLogoBadge());
 
-  const apron = box(0.44, 0.38, 0.06, 0x111111);
-  apron.position.set(0, 0.92, 0.14);
+  // Avental preto com contraste
+  const apron = box(0.46, 0.42, 0.07, 0x0a0a0a);
+  apron.position.set(0, 0.9, 0.155);
   bodyRoot.add(apron);
+  const apronTie = box(0.08, 0.5, 0.03, 0x1a1a1a);
+  apronTie.position.set(0, 1.15, 0.17);
+  bodyRoot.add(apronTie);
+  const apronPocket = box(0.16, 0.12, 0.04, 0x222222);
+  apronPocket.position.set(0.08, 0.82, 0.19);
+  bodyRoot.add(apronPocket);
 
-  const legs = box(0.36, 0.55, 0.22, 0x1a1a1a);
+  // Braços
+  const armL = box(0.12, 0.48, 0.12, 0x151515);
+  armL.position.set(-0.3, 1.05, 0);
+  const armR = armL.clone();
+  armR.position.x = 0.3;
+  bodyRoot.add(armL, armR);
+  const handL = sphere(0.055, def.skin);
+  handL.position.set(-0.3, 0.78, 0.02);
+  const handR = handL.clone();
+  handR.position.x = 0.3;
+  bodyRoot.add(handL, handR);
+
+  const legs = box(0.38, 0.55, 0.22, 0x1a1a22);
   legs.position.y = 0.4;
   bodyRoot.add(legs);
 
-  const shoes = box(0.4, 0.08, 0.28, 0x0a0a0a);
+  const shoes = box(0.42, 0.09, 0.3, 0x050505);
   shoes.position.y = 0.06;
   bodyRoot.add(shoes);
 
@@ -456,6 +591,7 @@ export function buildWaiterMesh(def) {
   root.userData.npcId = def.id;
   root.userData.kind = "waiter";
   root.userData.chatBubble = bubble;
+  root.userData.bodyRoot = bodyRoot;
   return root;
 }
 

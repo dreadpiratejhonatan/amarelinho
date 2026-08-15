@@ -584,8 +584,8 @@ body.is-dialogue .touch {
 /* Twin-stick: esquerda anda · direita olha · E acima do stick de olhar */
 .touch__stick {
   position: absolute;
-  width: 132px;
-  height: 132px;
+  width: 148px;
+  height: 148px;
   border-radius: 50%;
   background: rgba(12, 8, 2, 0.38);
   border: 2px solid rgba(255, 216, 74, 0.55);
@@ -610,8 +610,8 @@ body.is-dialogue .touch {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   margin: 0;
   border-radius: 50%;
   background: rgba(255, 216, 74, 0.7);
@@ -644,11 +644,17 @@ body.is-dialogue .touch {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(255, 216, 74, 0.12);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  transition: box-shadow 0.15s ease, background 0.15s ease, transform 0.1s ease;
 }
 
 .touch__btn.is-down {
   background: rgba(255, 216, 74, 0.35);
   transform: scale(0.94);
+}
+
+.touch__btn.is-prompt {
+  box-shadow: 0 0 0 4px rgba(255, 216, 74, 0.45), 0 8px 24px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 216, 74, 0.22);
 }
 
 /* Sem texto de teclado no celular */

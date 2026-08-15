@@ -157,7 +157,28 @@ export class NpcAgent {
     this.target = { x: job.x, z: job.z };
     this.timer = 12;
     this.say("Já levo!", 1.6);
+    this._attachTray(job.itemId);
     return true;
+  }
+
+  _attachTray(itemId) {
+    this._detachTray();
+    // lazy import avoided — tray built by world/main and passed, or built here
+    if (typeof this._trayBuilder === "function") {
+      const tray = this._trayBuilder(itemId);
+      if (tray) {
+        const body = this.mesh.userData.bodyRoot || this.mesh;
+        body.add(tray);
+        this._tray = tray;
+      }
+    }
+  }
+
+  _detachTray() {
+    if (this._tray) {
+      this._tray.parent?.remove(this._tray);
+      this._tray = null;
+    }
   }
 
   trySit(world) {
@@ -228,6 +249,7 @@ export class NpcAgent {
 
     if (this.state === "serve") {
       if (!this.target || this.timer <= 0) {
+        this._detachTray();
         this.state = "idle";
         this._serveJob = null;
         this.timer = 1;
@@ -237,6 +259,7 @@ export class NpcAgent {
       this._walkToward(dt, agents, world);
       if (dist2(this.x, this.z, this.target.x, this.target.z) < 0.45) {
         this.say("Pronto!", 2);
+        this._detachTray();
         this._serveJob?.onArrive?.();
         this._serveJob = null;
         this.state = "idle";

@@ -247,6 +247,10 @@ export class World {
     this._awningLights = [];
     this._rain = null;
     this._sessionT = 0;
+    this._rainPulseUntil = 0;
+    this._quality = "high";
+    this._goalBoost = 1;
+    this._rainSeed = Math.random();
     this._build();
   }
 
@@ -488,31 +492,54 @@ export class World {
   }
 
   _awning() {
-    const cloth = meshBox(28, 0.1, 5.8, 0xe8b000, {
-      roughness: 0.9,
+    // Toldo amarelo com volume (pano + estrutura + babado)
+    const cloth = meshBox(28, 0.14, 5.8, 0xe8b000, {
+      roughness: 0.88,
       emissive: 0x886600,
-      emissiveIntensity: 0.22,
+      emissiveIntensity: 0.28,
     });
-    cloth.position.set(0, 3.25, 2.4);
-    cloth.rotation.x = -0.05;
+    cloth.position.set(0, 3.28, 2.4);
+    cloth.rotation.x = -0.06;
     this.group.add(cloth);
 
-    for (const x of [-12, -6, 0, 6, 12]) {
-      const arm = meshBox(0.07, 0.07, 5.2, 0x333333, { metalness: 0.45, roughness: 0.4 });
-      arm.position.set(x, 3.12, 2.2);
+    const clothUnder = meshBox(27.6, 0.06, 5.5, 0xc99600, {
+      roughness: 0.92,
+      emissive: 0x664400,
+      emissiveIntensity: 0.12,
+    });
+    clothUnder.position.set(0, 3.16, 2.35);
+    clothUnder.rotation.x = -0.06;
+    this.group.add(clothUnder);
+
+    for (const x of [-12, -8, -4, 0, 4, 8, 12]) {
+      const arm = meshBox(0.08, 0.08, 5.3, 0x2e2e2e, { metalness: 0.5, roughness: 0.38 });
+      arm.position.set(x, 3.14, 2.25);
       this.group.add(arm);
-      const pole = meshCyl(0.045, 0.045, 3.1, 0x2a2a2a, { metalness: 0.5, roughness: 0.4 });
-      pole.position.set(x, 1.55, 4.8);
+      const pole = meshCyl(0.05, 0.055, 3.15, 0x242424, { metalness: 0.55, roughness: 0.38 });
+      pole.position.set(x, 1.55, 4.85);
       this.group.add(pole);
+      const foot = meshCyl(0.1, 0.12, 0.08, 0x1a1a1a, { metalness: 0.4, roughness: 0.5 });
+      foot.position.set(x, 0.04, 4.85);
+      this.group.add(foot);
     }
 
-    const val = meshBox(28, 0.4, 0.1, 0xffd400, {
-      roughness: 0.8,
+    // Babado / valance frontal
+    const val = meshBox(28.2, 0.48, 0.12, 0xffd400, {
+      roughness: 0.78,
       emissive: 0xaa8800,
-      emissiveIntensity: 0.2,
+      emissiveIntensity: 0.28,
     });
-    val.position.set(0, 2.95, 5.2);
+    val.position.set(0, 2.92, 5.25);
     this.group.add(val);
+    for (let i = 0; i < 14; i++) {
+      const scallop = meshBox(1.6, 0.22, 0.08, i % 2 === 0 ? 0xffd84a : 0xe8b000, {
+        roughness: 0.85,
+        emissive: 0x886600,
+        emissiveIntensity: 0.15,
+      });
+      scallop.position.set(-13 + i * 2, 2.68, 5.28);
+      this.group.add(scallop);
+    }
   }
 
   _makeTable(x, z, rot = 0, dark = true, floorY = 0) {
@@ -771,17 +798,29 @@ export class World {
 
   /** Envia um garçom até a mesa do jogador (comanda). */
   dispatchServe(job) {
-    const waiters = this.npcAgents.filter(
+    let waiters = this.npcAgents.filter(
       (a) => a.kind === "waiter" && a.state !== "serve" && a.interactable?.id !== "carlinhos"
     );
     if (!waiters.length) return false;
+    const preferId = job.preferId;
+    const moodFn = job.moodFn;
+    if (preferId) {
+      const preferred = waiters.filter((a) => a.interactable?.id === preferId);
+      if (preferred.length) waiters = preferred;
+    } else if (typeof moodFn === "function") {
+      waiters.sort((a, b) => moodFn(b.interactable?.id) - moodFn(a.interactable?.id));
+      const top = moodFn(waiters[0]?.interactable?.id) || 0;
+      if (top >= 2) waiters = waiters.slice(0, Math.max(1, Math.ceil(waiters.length / 2)));
+    }
     const w = waiters[Math.floor(Math.random() * waiters.length)];
+    if (!w._trayBuilder && this._trayBuilder) w._trayBuilder = this._trayBuilder;
     return w.assignServe(job);
   }
 
-  cheerCrowd() {
+  cheerCrowd(intensity = 0.55) {
+    const chance = Math.max(0.15, Math.min(1, intensity));
     for (const a of this.npcAgents) {
-      if (Math.random() < 0.55) a.cheer();
+      if (Math.random() < chance) a.cheer();
     }
   }
 
@@ -827,8 +866,7 @@ export class World {
     );
   }
 
-  _buildRain() {
-    const count = 400;
+  _buildRain(count = 400) {
     const geo = new THREE.BoxGeometry(0.02, 0.18, 0.02);
     const matRain = new THREE.MeshBasicMaterial({
       color: 0xaaccff,
@@ -839,6 +877,7 @@ export class World {
     const mesh = new THREE.InstancedMesh(geo, matRain, count);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
+    mesh.visible = false;
     const dummy = new THREE.Object3D();
     const drops = [];
     for (let i = 0; i < count; i++) {
@@ -855,14 +894,59 @@ export class World {
     }
     mesh.instanceMatrix.needsUpdate = true;
     this.group.add(mesh);
-    this._rain = { mesh, drops, dummy, on: true };
+    this._rain = { mesh, drops, dummy, on: false, wanted: false };
+  }
+
+  setQuality(level) {
+    this._quality = level === "low" ? "low" : "high";
+    if (this._rain) {
+      this._rain.mesh.material.opacity = this._quality === "low" ? 0.22 : 0.35;
+    }
+    // Esconde clientes extras no modo low
+    let i = 0;
+    for (const a of this.npcAgents) {
+      if (a.kind !== "customer") continue;
+      i += 1;
+      if (this._quality === "low" && i > 8) {
+        a.mesh.visible = false;
+        a._culledByQuality = true;
+      } else if (a._culledByQuality) {
+        a.mesh.visible = true;
+        a._culledByQuality = false;
+      }
+    }
+  }
+
+  setGoalBoost(mult) {
+    this._goalBoost = Math.max(0.5, Math.min(3, mult));
+    for (const tv of this.tvs) tv.setGoalBoost?.(this._goalBoost);
+  }
+
+  pulseAwning(duration = 1.8) {
+    this._rainPulseUntil = performance.now() + duration * 1000;
+  }
+
+  /** Chuva: liga/desliga conforme fase da noite + semente da sessão. */
+  _updateRainState() {
+    if (!this._rain) return;
+    // Sessões chuvosas ~55%; começa perto do meio da noite
+    const rainyNight = this._rainSeed > 0.45;
+    const startAt = 0.22 + this._rainSeed * 0.25;
+    const endAt = 0.92;
+    const want = rainyNight && this.nightPhase >= startAt && this.nightPhase < endAt;
+    if (want !== this._rain.wanted) {
+      this._rain.wanted = want;
+      this._rain.on = want;
+      this._rain.mesh.visible = want;
+      this.onRainChange?.(want);
+    }
   }
 
   updateNpcs(dt, playerPos = null) {
     for (const agent of this.npcAgents) {
       agent.update(dt, this.npcAgents, this);
-      // LOD simples: esconde clientes longe
-      if (playerPos && agent.kind === "customer" && agent.mesh) {
+      // LOD simples: esconde clientes longe (respeita cull de qualidade)
+      if (playerPos && agent.kind === "customer" && agent.mesh && !agent._culledByQuality) {
         const d = playerPos.distanceTo(agent.mesh.position);
         agent.mesh.visible = d < 22;
       }
@@ -872,8 +956,7 @@ export class World {
   updateTvs(now) {
     if (!this._tvAcc) this._tvAcc = 0;
     this._tvAcc += 1;
-    const mobile = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-    const every = mobile ? 5 : 3;
+    const every = this._quality === "low" ? 6 : 3;
     if (this._tvAcc % every !== 0) return;
     for (const tv of this.tvs) tv.draw(now);
   }
@@ -881,6 +964,7 @@ export class World {
   updateNight(dt, now, exposureBase = 1.35) {
     this._sessionT += dt;
     this.nightPhase = Math.min(1, this._sessionT / 420);
+    this._updateRainState();
 
     for (const car of this.cars) {
       car.mesh.position.x += car.speed * dt;
@@ -888,13 +972,16 @@ export class World {
       if (car.speed < 0 && car.mesh.position.x < car.minX) car.mesh.position.x = car.maxX;
       car.mesh.position.z = car.zLane + Math.sin(now * 0.001 + car.mesh.position.x) * 0.02;
     }
+    const lastCall = this.nightPhase > 0.85 ? 0.55 : 1;
     for (const b of this._blinkLights) {
       const flick = 0.85 + Math.sin(now * 0.004 + b.phase) * 0.08 + Math.sin(now * 0.013 + b.phase) * 0.05;
-      b.light.intensity = b.base * flick * (1 - this.nightPhase * 0.15);
+      b.light.intensity = b.base * flick * (1 - this.nightPhase * 0.15) * lastCall;
     }
+    const pulsing = now < this._rainPulseUntil;
     for (const l of this._awningLights) {
       if (!l.userData._base) l.userData._base = l.intensity;
-      l.intensity = l.userData._base * (0.92 + Math.sin(now * 0.003 + l.position.x) * 0.06);
+      const base = l.userData._base * (0.92 + Math.sin(now * 0.003 + l.position.x) * 0.06);
+      l.intensity = pulsing ? base * (1.35 + Math.sin(now * 0.02) * 0.25) : base * lastCall;
     }
     const cycle = this.nightPhase;
     if (this.scene.fog) {
@@ -932,7 +1019,8 @@ export class World {
     }
     if (this._rain?.on) {
       const { mesh, drops, dummy } = this._rain;
-      for (let i = 0; i < drops.length; i++) {
+      const step = this._quality === "low" ? 2 : 1;
+      for (let i = 0; i < drops.length; i += step) {
         const d = drops[i];
         d.y -= d.vy * dt;
         if (d.y < 0.05) {
@@ -945,12 +1033,15 @@ export class World {
         mesh.setMatrixAt(i, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.material.opacity = 0.2 + Math.sin(now * 0.001) * 0.08;
+      mesh.material.opacity = (this._quality === "low" ? 0.18 : 0.22) + Math.sin(now * 0.001) * 0.08;
     }
     if (this._jukeboxLight) {
       this._jukeboxLight.material.emissiveIntensity = 0.6 + Math.sin(now * 0.008) * 0.4;
     }
-    return exposureBase * (1 - this.nightPhase * 0.12);
+    if (this._fan) {
+      this._fan.rotation.z = now * 0.004;
+    }
+    return exposureBase * (1 - this.nightPhase * 0.18) * (this.nightPhase > 0.85 ? 0.88 : 1);
   }
 
   resolveCollision(pos, radius) {

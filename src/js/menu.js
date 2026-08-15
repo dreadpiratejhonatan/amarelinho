@@ -1,6 +1,7 @@
 /** Cardápio do Amarelinho — preços em R$. */
 export const MENU = {
   beer: { id: "beer", name: "Cerveja gelada", price: 12, emoji: "🍺", cat: "drink" },
+  soda: { id: "soda", name: "Refrigerante", price: 8, emoji: "🥤", cat: "drink" },
   water: { id: "water", name: "Água", price: 5, emoji: "💧", cat: "drink" },
   gelo_limao: {
     id: "gelo_limao",
@@ -17,15 +18,18 @@ export const MENU = {
   torresmo: { id: "torresmo", name: "Torresmo", price: 32, emoji: "🥓", cat: "food" },
   bolinho: { id: "bolinho", name: "Bolinho de bacalhau", price: 28, emoji: "🟡", cat: "food" },
   calabresa: { id: "calabresa", name: "Calabresa acebolada", price: 36, emoji: "🌶️", cat: "food" },
+  pastel: { id: "pastel", name: "Pastel de feira", price: 14, emoji: "🥟", cat: "food" },
 };
 
 export const MENU_ORDER = [
   "beer",
+  "soda",
   "batida",
   "batida_limao",
   "batida_maracuja",
   "batida_especial",
   "food",
+  "pastel",
   "torresmo",
   "bolinho",
   "calabresa",

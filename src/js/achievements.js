@@ -11,6 +11,10 @@ export const ACHIEVEMENTS = [
   { id: "jukebox", name: "DJ da casa", desc: "Troque a estação da jukebox", icon: "🎵" },
   { id: "photo", name: "Lembrança", desc: "Tire uma foto da noite", icon: "📸" },
   { id: "round", name: "Rodada", desc: "Pague uma comanda de R$ 80+", icon: "🍻" },
+  { id: "turma", name: "Conheceu a turma", desc: "Complete as 6 histórias dos garçons", icon: "💛" },
+  { id: "toninho_smile", name: "Quase sorriu", desc: "Faça o Toninho quase sorrir", icon: "😐" },
+  { id: "fabin_promo", name: "Promoção da casa", desc: "Aceite (ou recuse) a oferta do Fabin", icon: "😄" },
+  { id: "carlinhos_secret", name: "Segredo da chapa", desc: "Peça o especial do Carlinhos", icon: "🧢" },
 ];
 
 export function evaluateAchievements(data) {
@@ -33,5 +37,12 @@ export function evaluateAchievements(data) {
   if (data.usedJukebox) mark("jukebox");
   if (data.tookPhoto) mark("photo");
   if (data.bigRound) mark("round");
+
+  const beats = data.waiterBeats || {};
+  const beatIds = ["toninho", "fabin", "oliveira", "val", "ney", "carlinhos"];
+  if (beatIds.every((id) => beats[id])) mark("turma");
+  if (beats.toninho) mark("toninho_smile");
+  if (beats.fabin) mark("fabin_promo");
+  if (beats.carlinhos) mark("carlinhos_secret");
   return unlocked;
 }

@@ -170,6 +170,39 @@ export function buildBarFromPlan(world) {
     addCol(world, x, B.z1 - 0.4, 0.6, 0.6);
   }
 
+  // Extintor no pilar (ref do boteco)
+  const extinguisher = box(0.18, 0.45, 0.14, 0xc42020, { roughness: 0.45, metalness: 0.2 });
+  extinguisher.position.set(-3.35, 1.35, B.z1 - 0.15);
+  world.group.add(extinguisher);
+  const extTop = cyl(0.04, 0.04, 0.08, 0x222222);
+  extTop.position.set(-3.35, 1.62, B.z1 - 0.15);
+  world.group.add(extTop);
+
+  // Ventilador de parede
+  const fanMount = box(0.12, 0.12, 0.08, 0x1a1a1a);
+  fanMount.position.set(B.x0 + 0.4, 2.85, -2);
+  world.group.add(fanMount);
+  const fan = cyl(0.28, 0.28, 0.06, 0x3a3a42, { metalness: 0.4, roughness: 0.45 });
+  fan.rotation.x = Math.PI / 2;
+  fan.position.set(B.x0 + 0.55, 2.85, -2);
+  world.group.add(fan);
+  world._fan = fan;
+
+  // Placa na calçada
+  const sidewalkSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 0.55),
+    new THREE.MeshBasicMaterial({
+      map: label("MESA NA CALÇADA", "#1a1408", "#ffd84a"),
+      side: THREE.DoubleSide,
+    })
+  );
+  sidewalkSign.position.set(-5.5, 1.35, B.z1 + 1.2);
+  sidewalkSign.rotation.y = 0.15;
+  world.group.add(sidewalkSign);
+  const signPole = cyl(0.04, 0.04, 1.2, 0x333333);
+  signPole.position.set(-5.5, 0.6, B.z1 + 1.2);
+  world.group.add(signPole);
+
   const parapet = box(W + 0.4, 0.55, 0.55, Y);
   parapet.position.set(cx, 3.95, B.z1 - 0.3);
   world.group.add(parapet);
@@ -230,19 +263,61 @@ export function buildBarFromPlan(world) {
   desk.position.set(bl.x0 + 2.2, 0.55, bl.z1 - 1.5);
   world.group.add(desk);
   addCol(world, bl.x0 + 2.2, bl.z1 - 1.5, 3.3, 0.95);
-  const deskTop = box(3.25, 0.08, 0.9, 0x2a2a2e, { metalness: 0.2, roughness: 0.35 });
+  // Base de tijolo sob o balcão (refs da fachada)
+  const deskBrick = box(3.25, 0.55, 0.9, C.brick, { roughness: 0.9 });
+  deskBrick.position.set(bl.x0 + 2.2, 0.28, bl.z1 - 1.5);
+  world.group.add(deskBrick);
+  const deskTop = box(3.25, 0.08, 0.9, 0x3a2a1a, { metalness: 0.12, roughness: 0.4 });
   deskTop.position.set(bl.x0 + 2.2, 1.12, bl.z1 - 1.5);
   world.group.add(deskTop);
   const register = box(0.45, 0.35, 0.4, 0x1a1a1a);
   register.position.set(bl.x0 + 1.4, 1.4, bl.z1 - 1.5);
   world.group.add(register);
 
+  // Diamante amarelo genérico no balcão (sem marca)
+  const diamond = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.38, 0),
+    mat(0xffd84a, { roughness: 0.45, emissive: 0xaa7700, emissiveIntensity: 0.35 })
+  );
+  diamond.position.set(bl.x0 + 2.9, 1.55, bl.z1 - 1.5);
+  diamond.rotation.y = Math.PI / 4;
+  diamond.scale.set(1, 1.15, 0.35);
+  diamond.castShadow = true;
+  world.group.add(diamond);
+  const diaLabel = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.18),
+    new THREE.MeshBasicMaterial({ map: label("ORIGINAL", "#ffd84a", "#1a1408"), transparent: true })
+  );
+  diaLabel.position.set(bl.x0 + 2.9, 1.55, bl.z1 - 1.28);
+  world.group.add(diaLabel);
+
+  // Prateleira de garrafas atrás do caixa
+  const backShelf = box(3.4, 0.08, 0.35, C.woodLight);
+  backShelf.position.set(bl.x0 + 2.2, 2.35, bl.z1 - 2.15);
+  world.group.add(backShelf);
+  const backShelf2 = box(3.4, 0.08, 0.35, C.woodLight);
+  backShelf2.position.set(bl.x0 + 2.2, 1.85, bl.z1 - 2.15);
+  world.group.add(backShelf2);
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; i < 10; i++) {
+      const bottle = cyl(0.045, 0.05, 0.26 + (i % 3) * 0.04, [0x224422, 0x553311, 0x1a1a66, 0x884422][i % 4]);
+      bottle.position.set(bl.x0 + 0.7 + i * 0.3, 1.55 + row * 0.5, bl.z1 - 2.15);
+      world.group.add(bottle);
+    }
+  }
+  // Copos pendurados
+  for (let i = 0; i < 8; i++) {
+    const glass = cyl(0.04, 0.035, 0.12, 0xcceeff, { metalness: 0.2, roughness: 0.15, transparent: true, opacity: 0.55 });
+    glass.position.set(bl.x0 + 0.9 + i * 0.28, 2.55, bl.z1 - 2.05);
+    world.group.add(glass);
+  }
+
   const caixaTex = label("CAIXA", "#1a1a1a", "#ffd84a");
   const caixaSign = new THREE.Mesh(
     new THREE.PlaneGeometry(1.2, 0.35),
     new THREE.MeshBasicMaterial({ map: caixaTex })
   );
-  caixaSign.position.set(bl.x0 + 2.2, 2.2, bl.z1 - 1.05);
+  caixaSign.position.set(bl.x0 + 2.2, 2.85, bl.z1 - 1.05);
   world.group.add(caixaSign);
 
   // Geladeiras de cerveja (fileira)
@@ -261,11 +336,11 @@ export function buildBarFromPlan(world) {
     });
     glass.position.set(fx, 1.15, fz + 0.42);
     world.group.add(glass);
-    // Latas
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 3; c++) {
-        const can = cyl(0.06, 0.06, 0.14, [0xffd84a, 0xcc2020, 0xffffff][c % 3]);
-        can.position.set(fx - 0.25 + c * 0.25, 0.55 + r * 0.45, fz + 0.15);
+    // Latas densas nas geladeiras
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const can = cyl(0.055, 0.055, 0.13, [0xffd84a, 0xcc2020, 0xffffff, 0x2a6ad4][(c + r) % 4]);
+        can.position.set(fx - 0.32 + c * 0.22, 0.48 + r * 0.38, fz + 0.12);
         world.group.add(can);
       }
     }
@@ -308,6 +383,14 @@ export function buildBarFromPlan(world) {
   const kitFloor = box(rectSize(k).w - 0.2, 0.04, rectSize(k).d - 0.2, 0x6a6a70, { roughness: 0.55 });
   kitFloor.position.set(kC.x, 0.06, kC.z);
   world.group.add(kitFloor);
+
+  // Tijolo baixo na cozinha (contraste amarelo × tijolo das refs)
+  const kitBrick = box(rectSize(k).w - 0.4, 0.95, 0.2, C.brick, { roughness: 0.9 });
+  kitBrick.position.set(kC.x, 0.48, k.z0 + 0.25);
+  world.group.add(kitBrick);
+  const kitYellow = box(rectSize(k).w - 0.4, 1.8, 0.18, Y, { roughness: 0.55 });
+  kitYellow.position.set(kC.x, 1.9, k.z0 + 0.22);
+  world.group.add(kitYellow);
 
   // Chapa
   const bench = box(3.8, 0.9, 0.9, 0x4a4a50, { metalness: 0.4, roughness: 0.4 });
@@ -380,14 +463,24 @@ export function buildBarFromPlan(world) {
   kitSign.rotation.y = Math.PI / 2;
   world.group.add(kitSign);
 
-  // Prateleira fundo cozinha
-  const shelf = box(4.5, 2.0, 0.25, C.woodLight);
-  shelf.position.set(kC.x, 2.1, k.z0 + 0.4);
-  world.group.add(shelf);
-  for (let i = 0; i < 14; i++) {
-    const bottle = cyl(0.05, 0.055, 0.28, [0x224422, 0x553311, 0x222266][i % 3]);
-    bottle.position.set(k.x0 + 1.5 + i * 0.28, 1.4, k.z0 + 0.55);
-    world.group.add(bottle);
+  // Prateleiras fundo cozinha (várias fileiras)
+  for (const hy of [1.35, 1.85, 2.35]) {
+    const shelf = box(4.8, 0.07, 0.32, C.woodLight);
+    shelf.position.set(kC.x, hy, k.z0 + 0.42);
+    world.group.add(shelf);
+  }
+  for (let row = 0; row < 3; row++) {
+    for (let i = 0; i < 12; i++) {
+      const bottle = cyl(0.045, 0.05, 0.24 + (i % 4) * 0.03, [0x224422, 0x553311, 0x222266, 0xaa4422][i % 4]);
+      bottle.position.set(k.x0 + 1.4 + i * 0.32, 1.15 + row * 0.5, k.z0 + 0.55);
+      world.group.add(bottle);
+    }
+  }
+  // Utensílios na bancada
+  for (let i = 0; i < 4; i++) {
+    const pan = cyl(0.14, 0.12, 0.06, 0x2a2a2e, { metalness: 0.6, roughness: 0.35 });
+    pan.position.set(k.x0 + 3.6 + i * 0.35, 1.02, kC.z - 0.25);
+    world.group.add(pan);
   }
 
   // —— Banheiros ——
@@ -556,5 +649,20 @@ export function placePlanTables(world, makeTable) {
   ];
   for (const [x, z] of yellowSpots) {
     makeTable(x, z, (Math.random() - 0.5) * 0.12, true, 0);
+  }
+
+  // Calçada sob o toldo
+  const sidewalkSpots = [
+    [-8.5, 2.8],
+    [-5.5, 3.0],
+    [-2.5, 2.7],
+    [0.5, 3.1],
+    [3.5, 2.9],
+    [-7.0, 4.4],
+    [-3.5, 4.6],
+    [1.5, 4.5],
+  ];
+  for (const [x, z] of sidewalkSpots) {
+    makeTable(x, z, (Math.random() - 0.5) * 0.2, false, 0);
   }
 }

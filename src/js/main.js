@@ -13,6 +13,7 @@ import { Settings } from "./settings.js";
 import { Bill, MENU, MENU_ORDER, menuChoice, isBrazilLunch } from "./menu.js";
 import { I18n } from "./i18n.js";
 import { LAYOUT, floorHeightAt } from "./layout.js";
+import { ServeProps, buildTray } from "./serveProps.js";
 
 class Game {
   constructor() {
@@ -51,8 +52,11 @@ class Game {
     this.progress = new Progress();
     this.bill = new Bill();
     this.world = new World(this.scene);
+    this.serveProps = new ServeProps(this.world);
+    this.world._trayBuilder = (itemId) => buildTray(itemId);
     this.player = new Player(this.camera, this.world);
     this.touch = isTouchDevice() ? new TouchControls(this.input) : null;
+    this._applyQuality();
 
     this.sfx.setVolume(this.settings.data.volume);
     this.sfx.setMusic(this.settings.data.music);
@@ -62,24 +66,36 @@ class Game {
     this._ordered = false;
     this._wasComplete = false;
     this._deliveryTimer = 0;
+    this._deliveryPreferId = null;
     this._guideTimer = 0;
     this._lastCallToast = false;
+    this._nightEvent = null;
+    this._tutorialStep = 0;
 
     this.world.bindTvEvents((ev) => {
       if (this.state !== "playing" && this.state !== "dialogue") return;
       if (ev.type === "goal") {
         this.sfx.cheer();
-        this.world.cheerCrowd();
-        this.hud.showToast(ev.team === "AMA" ? "GOOL do Amarelinho!" : "Gol dos visitantes…", 2200);
+        const ama = ev.team === "AMA";
+        this.world.cheerCrowd(ama ? 0.92 : 0.45);
+        if (ama) this.world.pulseAwning(2.2);
+        this.sfx.setMurmurBoost(ama ? 1.6 : 1.15);
+        this.hud.showToast(ama ? "GOOL do Amarelinho!" : "Gol dos visitantes…", 2200);
       } else if (ev.type === "almost") {
         this.sfx.almost();
-        this.world.cheerCrowd();
+        this.world.cheerCrowd(0.4);
         this.hud.showToast("Quase!", 1400);
       } else if (ev.type === "boo") {
         this.sfx.boo();
         this.hud.showToast("Uhhh…", 1400);
       }
     });
+    this.world.onRainChange = (on) => {
+      this.sfx.setRain(on);
+      if (on && (this.state === "playing" || this.state === "dialogue")) {
+        this.hud.showToast("Começou a chover na calçada…", 2400);
+      }
+    };
 
     this.btnPlay.addEventListener("click", () => {
       this.sfx.resume();
@@ -228,6 +244,14 @@ class Game {
         this.sfx.setMusic(music.checked);
       });
     }
+    const quality = document.getElementById("set-quality");
+    if (quality) {
+      quality.value = this.settings.data.quality || "auto";
+      quality.addEventListener("change", () => {
+        this.settings.set("quality", quality.value);
+        this._applyQuality();
+      });
+    }
     if (lang) {
       lang.value = this.settings.data.lang || "pt";
       lang.addEventListener("change", () => {
@@ -282,8 +306,13 @@ class Game {
     this._ordered = false;
     this._wasComplete = false;
     this._lastCallToast = false;
+    this._deliveryPreferId = null;
+    this.serveProps.clearAll();
     this.world._sessionT = 0;
     this.world.nightPhase = 0;
+    this.world._rainSeed = Math.random();
+    this._applyQuality();
+    this._pickNightEvent();
 
     this.menu.hidden = true;
     this.menu.setAttribute("aria-hidden", "true");
@@ -301,25 +330,104 @@ class Game {
     this.touch?.show();
     this.sfx.resume();
     this.sfx.startAmbience();
+    this.sfx.setRain(false);
     this.sfx.open();
     this._refreshObjective();
     this._refreshMoney();
-
-    if (!this.settings.data.seenTutorial) {
-      this._guideTimer = 14;
-      this.hud.setGuide(true, "→ Fale · peça · sente · pague (veja o bolso)");
-      this.settings.set("seenTutorial", true);
-    } else {
-      this._guideTimer = 6;
-      this.hud.setGuide(true, this.progress.currentObjective());
-    }
+    this._startTutorial();
 
     this.hud.showToast(
       this.input.mobile
         ? "Stick esquerdo anda · stick direito olha · E pra falar"
         : `Bolso R$ ${this.progress.data.wallet}. Siga a missão.`,
-      3600
+      3200
     );
+    if (this._nightEventLabel) {
+      setTimeout(() => {
+        if (this.state === "playing") this.hud.showToast(this._nightEventLabel, 3800);
+      }, 3400);
+    }
+  }
+
+  _pickNightEvent() {
+    const idx = (this.progress.data.nightStoryIndex || 0) % 3;
+    const events = [
+      {
+        id: "derby",
+        label: "Noite de derby na TV — mais gols no placar!",
+        apply: () => this.world.setGoalBoost(2.2),
+      },
+      {
+        id: "fabin_promo",
+        label: "Promoção Fabin: batida especial com desconto de amigo.",
+        apply: () => this.world.setGoalBoost(1),
+      },
+      {
+        id: "jukebox_free",
+        label: "Jukebox livre — Val já deixou a batida no ar.",
+        apply: () => {
+          this.world.setGoalBoost(1);
+          const name = this.sfx.nextStation();
+          this.progress.markJukebox();
+          this._nightEventJukebox = name;
+        },
+      },
+    ];
+    const ev = events[idx];
+    this._nightEvent = ev.id;
+    this._nightEventLabel = ev.label;
+    ev.apply();
+  }
+
+  _resolveQuality() {
+    const q = this.settings.data.quality || "auto";
+    if (q === "high") return "high";
+    if (q === "low") return "low";
+    return isTouchDevice() ? "low" : "high";
+  }
+
+  _applyQuality() {
+    const level = this._resolveQuality();
+    this.world.setQuality(level);
+    this.renderer.shadowMap.enabled = level === "high" && !isTouchDevice();
+    const rainCount = level === "low" ? 180 : 400;
+    if (this.world._rain && this.world._rain.drops.length !== rainCount) {
+      // density already handled by step in updateNight
+    }
+    this._qualityLevel = level;
+  }
+
+  _startTutorial() {
+    if (this.settings.data.seenTutorial && this.settings.data.tutorialDone) {
+      this._tutorialStep = 3;
+      this._guideTimer = 6;
+      this.hud.setGuide(true, this.progress.currentObjective());
+      return;
+    }
+    this._tutorialStep = 0;
+    this._guideTimer = 16;
+    this.hud.setGuide(true, "① Fale com alguém da casa (E)");
+    this.settings.set("seenTutorial", true);
+  }
+
+  _advanceTutorial() {
+    if (this._tutorialStep >= 3) return;
+    if (this._tutorialStep === 0 && this.progress.talkedCount() >= 1) {
+      this._tutorialStep = 1;
+      this._guideTimer = 14;
+      this.hud.setGuide(true, "② Vá à cozinha — fale com o Carlinhos");
+    }
+    if (this._tutorialStep === 1 && this.progress.data.metCarlinhos) {
+      this._tutorialStep = 2;
+      this._guideTimer = 14;
+      this.hud.setGuide(true, "③ Peça no caixa e sente numa mesa");
+    }
+    if (this._tutorialStep === 2 && this.progress.data.ordered && this.progress.data.sat) {
+      this._tutorialStep = 3;
+      this.settings.set("tutorialDone", true);
+      this._guideTimer = 8;
+      this.hud.setGuide(true, "Boa — agora pague a comanda no caixa");
+    }
   }
 
   pause(silent = false) {
@@ -367,6 +475,7 @@ class Game {
   }
 
   _refreshObjective() {
+    this._advanceTutorial();
     this.hud.setObjective(this.progress.currentObjective());
     if (this.progress.data.nightComplete && !this._wasComplete) {
       this._wasComplete = true;
@@ -458,22 +567,30 @@ class Game {
     if (this._deliveryTimer > 0 && playing) {
       this._deliveryTimer -= dt;
       if (this._deliveryTimer <= 0 && this.bill.pendingDelivery) {
-        const seat = this.player.sitting ? this.player.seat : this.bill.pendingDelivery.seat;
+        const pending = this.bill.pendingDelivery;
+        const seat = this.player.sitting ? this.player.seat : pending.seat;
         const target = seat || this.player.position;
+        const deliver = () => {
+          this.sfx.glass();
+          if (seat) {
+            this.serveProps.placeAtSeat(pending.itemId, seat);
+            this.hud.showToast("Pedido na mesa. Saúde!", 2800);
+          } else {
+            this.serveProps.placeAtCounter(pending.itemId);
+            this.hud.showToast("Pedido no balcão — senta que eu levo a próxima!", 3000);
+          }
+          this.bill.pendingDelivery = null;
+        };
         const ok = this.world.dispatchServe({
           x: target.x ?? target.position?.x ?? this.player.position.x,
           z: target.z ?? target.position?.z ?? this.player.position.z,
-          onArrive: () => {
-            this.sfx.glass();
-            this.hud.showToast("Pedido na mesa. Saúde!", 2800);
-            this.bill.pendingDelivery = null;
-          },
+          itemId: pending.itemId,
+          preferId: this._deliveryPreferId,
+          moodFn: (id) => this.progress.mood(id),
+          onArrive: deliver,
         });
-        if (!ok) {
-          this.sfx.glass();
-          this.hud.showToast("Pedido chegou. Saúde!", 2400);
-          this.bill.pendingDelivery = null;
-        }
+        this._deliveryPreferId = null;
+        if (!ok) deliver();
       }
     }
 
@@ -484,11 +601,14 @@ class Game {
         this.hud.setPrompt(this.input.mobile ? "Toque no E pra levantar" : "Esc ou E — levantar");
       } else if (target) {
         this.hud.setPrompt(this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`);
+        this.touch?.setPromptActive(true);
       } else {
         this.hud.setPrompt("");
+        this.touch?.setPromptActive(false);
       }
     } else {
       this.hud.setPrompt("");
+      this.touch?.setPromptActive(false);
     }
 
     if (playing && this.input.consumeInteract()) {
@@ -510,7 +630,13 @@ class Game {
       if (typeof exp === "number") this.renderer.toneMappingExposure = exp;
       if (this.world.nightPhase > 0.85 && !this._lastCallToast && playing) {
         this._lastCallToast = true;
+        this.sfx.setMurmurBoost(0.7);
         this.hud.showToast("Última chamada… a noite tá acabando.", 3600);
+      }
+      if (playing) {
+        this.sfx.setMurmurBoost(
+          this.world.nightPhase > 0.85 ? 0.7 : 1 + this.world.nightPhase * 0.35
+        );
       }
     }
   }
@@ -566,7 +692,17 @@ class Game {
     this.progress.markOrdered(itemId, def.price);
     this.sfx.order();
     this.bill.pendingDelivery = { itemId, seat: this.player.seat, eta: 4 };
-    const delay = (3.2 + Math.random() * 2) * this.progress.serveDelayFactor();
+    const prefer = this.progress.bestMoodWaiterId();
+    const delayFactor = this.progress.serveDelayFactor(prefer);
+    let delay = (3.2 + Math.random() * 2) * delayFactor;
+    // Humor baixo: chance de “tô ocupado”
+    if (prefer && this.progress.serveBusyChance(prefer) > Math.random()) {
+      delay += 2.5 + Math.random() * 2;
+      this.hud.showToast("Garçom ocupado… segura aí.", 2200);
+    } else if (prefer && this.progress.mood(prefer) >= 2) {
+      this.hud.showToast(`Pedido anotado — ${prefer} tá de boa, vem rápido.`, 2400);
+    }
+    this._deliveryPreferId = prefer;
     this._deliveryTimer = delay;
     this._refreshMoney();
     this._refreshObjective();
@@ -575,7 +711,7 @@ class Game {
 
   _menuChoices(includeFood = true) {
     const ids = MENU_ORDER.filter((id) => includeFood || MENU[id].cat !== "food");
-    return ids.slice(0, 8).map((id) => {
+    return ids.slice(0, 10).map((id) => {
       const c = menuChoice(id, {
         next: { text: `${MENU[id].emoji} Anotado — R$ ${MENU[id].price}.` },
       });
@@ -644,39 +780,65 @@ class Game {
               { label: "Deixa pra lá", next: { text: "Quando quiser, é só chamar." } },
             ],
           };
+    const choices = [
+      {
+        label: "E aí, tudo bem?",
+        next: { text: pickLine(def.lines.chat) },
+      },
+      {
+        label: "Me conta uma história",
+        next: { text: story },
+      },
+      {
+        label: "Quero pedir uma coisa.",
+        next: orderNext,
+      },
+      {
+        label: this.i18n.t("tip"),
+        next: {
+          text: pickLine(def.lines.tipThanks || ["Valeu."]),
+        },
+        action: `tip:${def.id}`,
+      },
+    ];
+
+    if (def.beat && !this.progress.hasBeat(def.id)) {
+      const need = def.beat.needMood || 0;
+      if (mood >= need) {
+        choices.splice(2, 0, this._beatChoice(def));
+      } else if (need > 0) {
+        choices.splice(2, 0, {
+          label: `${def.beat.label} (precisa de gorjeta)`,
+          next: {
+            text:
+              def.id === "toninho"
+                ? "Nem pensa. Gorjeta primeiro — aí a gente conversa de sorriso."
+                : "Ainda não. Melhora o clima com a gente primeiro.",
+          },
+        });
+      }
+    } else if (def.beat && this.progress.hasBeat(def.id)) {
+      choices.splice(2, 0, {
+        label: "(já ouvi essa história)",
+        next: { text: "Você já conhece esse lado da casa. Bom sinal." },
+      });
+    }
+
+    // Evento "promoção Fabin": oferece o beat logo no greet se ainda não feito
+    if (this._nightEvent === "fabin_promo" && def.id === "fabin" && !this.progress.hasBeat("fabin")) {
+      const already = choices.some((c) => c.label === def.beat.label);
+      if (!already) choices.splice(1, 0, this._beatChoice(def));
+    }
+
+    choices.push({
+      label: "Só passando pra cumprimentar.",
+      next: { text: this._byeLine(def.id) },
+    });
+
     this.dialogue.start(
       {
         name: def.name,
-        steps: [
-          {
-            text: greet,
-            choices: [
-              {
-                label: "E aí, tudo bem?",
-                next: { text: pickLine(def.lines.chat) },
-              },
-              {
-                label: "Me conta uma história",
-                next: { text: story },
-              },
-              {
-                label: "Quero pedir uma coisa.",
-                next: orderNext,
-              },
-              {
-                label: this.i18n.t("tip"),
-                next: {
-                  text: pickLine(def.lines.tipThanks || ["Valeu."]),
-                },
-                action: `tip:${def.id}`,
-              },
-              {
-                label: "Só passando pra cumprimentar.",
-                next: { text: this._byeLine(def.id) },
-              },
-            ],
-          },
-        ],
+        steps: [{ text: greet, choices }],
       },
       (action) => {
         this.state = "playing";
@@ -691,6 +853,8 @@ class Game {
           this.progress.annoy("val");
           this.hud.showToast("Val ficou puto no almoço… mas o copo vem igual.", 2800);
           this._addOrder("gelo_limao");
+        } else if (action?.startsWith("beat:")) {
+          this._resolveBeatAction(def, action);
         } else if (action && MENU[action]) {
           this._addOrder(action);
         }
@@ -698,6 +862,244 @@ class Game {
         this.input.requestLock();
       }
     );
+  }
+
+  _beatChoice(def) {
+    const b = def.beat;
+    const id = def.id;
+
+    if (id === "toninho") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: "Dar gorjeta (R$ 5) e insistir",
+              action: "beat:toninho:tip",
+              next: { text: b.steps.tipPath },
+            },
+            {
+              label: "Insistir sem gorjeta",
+              action: "beat:toninho:force",
+              next: { text: b.steps.rare },
+            },
+            {
+              label: "Deixa quieto",
+              next: { text: "…melhor." },
+            },
+          ],
+        },
+      };
+    }
+
+    if (id === "fabin") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: `Topar batida especial (R$ ${b.giftPrice})`,
+              action: "beat:fabin:accept",
+              next: { text: b.steps.accept },
+            },
+            {
+              label: "Recusar com educação",
+              action: "beat:fabin:refuse",
+              next: { text: b.steps.refuse },
+            },
+          ],
+        },
+      };
+    }
+
+    if (id === "oliveira") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: "Conta tudo",
+              next: {
+                text: b.steps.mid,
+                choices: [
+                  {
+                    label: "E aí?",
+                    action: "beat:oliveira:done",
+                    next: { text: b.steps.end },
+                  },
+                ],
+              },
+            },
+            {
+              label: "Outra hora",
+              next: { text: "Quando quiser, meu filho. O causo não vai embora." },
+            },
+          ],
+        },
+      };
+    }
+
+    if (id === "val") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: "Manda ver no cabo",
+              action: "beat:val:fix",
+              next: { text: b.steps.fixed },
+            },
+            {
+              label: "Deixa quieto",
+              next: { text: "Beleza. Se engasgar de novo, me chama." },
+            },
+          ],
+        },
+      };
+    }
+
+    if (id === "ney") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: "Quero saber mais",
+              next: {
+                text: b.steps.mid,
+                choices: [
+                  {
+                    label: "Vou falar com o Zé",
+                    action: "beat:ney:done",
+                    next: { text: b.steps.end },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      };
+    }
+
+    if (id === "carlinhos") {
+      return {
+        label: b.label,
+        next: {
+          text: b.steps.open,
+          choices: [
+            {
+              label: "Torresmo (R$ 32)",
+              action: "beat:carlinhos:torresmo",
+              next: { text: b.steps.torresmo },
+            },
+            {
+              label: "Bolinho de bacalhau (R$ 28)",
+              action: "beat:carlinhos:bolinho",
+              next: { text: b.steps.bolinho },
+            },
+            {
+              label: "Deixa pra lá",
+              next: { text: "Boné firme. Volta quando a fome apertar." },
+            },
+          ],
+        },
+      };
+    }
+
+    return {
+      label: b.label,
+      next: { text: "…" },
+    };
+  }
+
+  _resolveBeatAction(def, action) {
+    const parts = action.split(":");
+    const kind = parts[2];
+    if (def.id === "toninho") {
+      if (kind === "tip") {
+        const ok = this.progress.tip("toninho", 5);
+        if (!ok) {
+          this.hud.showToast(this.i18n.t("noMoney"), 2200);
+          return;
+        }
+        this.sfx.coin();
+        this._refreshMoney();
+      }
+      this.progress.markBeat("toninho");
+      this.hud.showToast("Toninho quase sorriu…", 2600);
+      return;
+    }
+    if (def.id === "fabin") {
+      this.progress.markBeat("fabin");
+      if (kind === "accept") {
+        const price = def.beat.giftPrice || 12;
+        if (!this.progress.canAfford(this.bill.total() + price)) {
+          this.hud.showToast(this.i18n.t("noMoney"), 2200);
+          return;
+        }
+        // Pedido com preço promocional: adiciona item e ajusta
+        const defItem = this.bill.add("batida_especial");
+        if (defItem) {
+          // Corrige preço na última linha
+          const last = this.bill.items[this.bill.items.length - 1];
+          last.price = price;
+          this._ordered = true;
+          this.progress.markOrdered("batida_especial", price);
+          this.sfx.order();
+          this.bill.pendingDelivery = {
+            itemId: "batida_especial",
+            seat: this.player.seat,
+            eta: 4,
+          };
+          this._deliveryTimer = (3.2 + Math.random() * 2) * this.progress.serveDelayFactor("fabin");
+          this._deliveryPreferId = "fabin";
+          this._refreshMoney();
+          this.hud.showToast(`🍹 Promoção — R$ ${price}`, 2600);
+        }
+      } else {
+        this.hud.showToast("Fabin entendeu. Oferta de pé.", 2200);
+      }
+      return;
+    }
+    if (def.id === "oliveira") {
+      this.progress.markBeat("oliveira");
+      this.hud.showToast("Causo da calçada ouvido.", 2400);
+      return;
+    }
+    if (def.id === "val") {
+      this.progress.markBeat("val");
+      const name = this.sfx.nextStation();
+      this.progress.markJukebox();
+      const m = this.progress.data.waiterMood.val || 0;
+      this.progress.data.waiterMood.val = Math.min(3, m + 1);
+      this.progress.save();
+      this.progress._syncAchievements();
+      this.hud.showToast(`Val no cabo · Jukebox: ${name}`, 2800);
+      return;
+    }
+    if (def.id === "ney") {
+      this.progress.markBeat("ney");
+      this.progress.markNeyHint();
+      this.hud.showToast("Ney falou do Seu Zé — vai na calçada.", 3000);
+      this._guideTimer = 8;
+      this.hud.setGuide(true, "→ Seu Zé na calçada");
+      return;
+    }
+    if (def.id === "carlinhos") {
+      const itemId = kind === "bolinho" ? "bolinho" : "torresmo";
+      if (!this._canOrder(itemId)) {
+        this.hud.showToast(this.i18n.t("noMoney"), 2200);
+        return;
+      }
+      this.progress.markBeat("carlinhos");
+      this._addOrder(itemId);
+      this.hud.showToast("Segredo da chapa anotado.", 2400);
+    }
   }
 
   _talkToRegular(def) {
@@ -796,6 +1198,7 @@ class Game {
           const ok = this.progress.markPaid(total);
           if (ok) {
             this.bill.clear();
+            this.serveProps.clearTable(true);
             this.sfx.coin();
             this.hud.showToast(this.i18n.t("payOk", total), 3200);
           } else {

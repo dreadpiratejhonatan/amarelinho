@@ -114,6 +114,7 @@ export class HUD {
       `Bolso: R$ ${Number(summary.wallet || 0).toFixed(0)}`,
       `Gorjetas: ${summary.tips || 0}`,
       `Batidas: ${summary.batidas || 0}/4`,
+      `Histórias: ${summary.beats || 0}/6`,
       summary.elevated ? "Salão elevado: ✓" : "Salão elevado: —",
       summary.allStaff ? "Falou com a casa toda: ✓" : "Ainda falta conhecer alguém",
       `Conquistas: ${summary.achievements || 0}`,

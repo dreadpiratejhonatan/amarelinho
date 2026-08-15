@@ -13,6 +13,10 @@ export class Sfx {
     this._musicTimer = null;
     this._masterNode = null;
     this.station = 0; // 0 batida, 1 samba, 2 off-ish soft
+    this._rainOn = false;
+    this._rainSrc = null;
+    this._rainGain = null;
+    this._murmurBoost = 1;
   }
 
   nextStation() {
@@ -151,6 +155,58 @@ export class Sfx {
     this._beep({ freq: 180, dur: 0.14, type: "sawtooth", gain: 0.008, slide: 90 });
   }
 
+  /** Chuva procedural (noise filtrado). */
+  setRain(on) {
+    const want = !!on;
+    if (want === this._rainOn) return;
+    this._rainOn = want;
+    if (!want) {
+      if (this._rainSrc) {
+        try {
+          this._rainSrc.stop();
+        } catch {
+          /* noop */
+        }
+        try {
+          this._rainSrc.disconnect();
+        } catch {
+          /* noop */
+        }
+        this._rainSrc = null;
+        this._rainGain = null;
+      }
+      return;
+    }
+    const ctx = this._ensure();
+    const out = this._out();
+    if (!ctx || !out) return;
+    const seconds = 2;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.55;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1400;
+    filter.Q.value = 0.6;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.018;
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(out);
+    src.start();
+    this._rainSrc = src;
+    this._rainGain = gain;
+  }
+
+  setMurmurBoost(mult = 1) {
+    this._murmurBoost = Math.max(0.5, Math.min(2.2, mult));
+  }
+
   /** Batida / samba synth — groove do boteco. */
   _batidaHit() {
     if (!this.musicOn || !this._ambienceOn || this.station === 2) return;
@@ -278,7 +334,7 @@ export class Sfx {
       const base = 140 + Math.random() * 260;
       osc.frequency.setValueAtTime(base, t0);
       osc.frequency.linearRampToValueAtTime(base + (Math.random() - 0.5) * 80, t0 + dur);
-      const vol = 0.008 + Math.random() * 0.012;
+      const vol = (0.008 + Math.random() * 0.012) * (this._murmurBoost || 1);
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
@@ -292,6 +348,7 @@ export class Sfx {
 
   stopAmbience() {
     this._ambienceWanted = false;
+    this.setRain(false);
     if (this._murmurTimer) {
       clearTimeout(this._murmurTimer);
       this._murmurTimer = null;

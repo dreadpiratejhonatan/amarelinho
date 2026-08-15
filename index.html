@@ -13,9 +13,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="src/styles/styles.css?v=v30" />
+  <link rel="stylesheet" href="src/styles/styles.css?v=v31" />
   <script>
-    window.AMA_BUILD = "v30";
+    window.AMA_BUILD = "v31";
     console.info("[Amarelinho] build", window.AMA_BUILD);
   </script>
   <script type="importmap">
@@ -74,6 +74,14 @@
           <select id="set-lang" class="settings__select">
             <option value="pt">Português</option>
             <option value="en">English</option>
+          </select>
+        </label>
+        <label class="settings__row">
+          <span>Qualidade</span>
+          <select id="set-quality" class="settings__select">
+            <option value="auto">Auto</option>
+            <option value="high">Alta</option>
+            <option value="low">Baixa (celular)</option>
           </select>
         </label>
         <label class="settings__check">
@@ -138,6 +146,5 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/main.js?v=v30"></script>
-</body>
+  <script type="module" src="src/js/main.js?v=v31"></script></body>
 </html>
