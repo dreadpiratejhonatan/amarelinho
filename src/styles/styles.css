@@ -566,89 +566,149 @@ body.is-touch .hud__hint {
   color: rgba(255, 246, 214, 0.5);
 }
 
-.menu__card--wide {
-  width: min(560px, 100%);
+/* Skin picker (estilo Neve Selvagem) */
+.skin-picker[hidden] {
+  display: none !important;
 }
 
-.char-picker {
-  text-align: left;
-  margin: 0 0 20px;
+.skin-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 200, 40, 0.18), transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(120, 40, 10, 0.4), transparent 45%),
+    rgba(8, 6, 2, 0.88);
+  pointer-events: auto;
 }
 
-.char-picker__label {
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255, 246, 214, 0.55);
-  margin: 12px 0 8px;
-}
-
-.char-picker__row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.char-picker__card {
-  flex: 0 0 auto;
-  width: 92px;
-  scroll-snap-align: start;
-  appearance: none;
-  border: 1px solid rgba(255, 216, 74, 0.28);
-  background: rgba(255, 246, 214, 0.06);
-  border-radius: 10px;
-  padding: 10px 8px 8px;
-  cursor: pointer;
-  color: #fff6d6;
+.skin-picker__panel {
+  width: min(96vw, 560px);
+  max-height: min(94vh, 860px);
+  overflow-y: auto;
+  padding: 1.6rem 1.4rem 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 216, 74, 0.35);
+  background: rgba(12, 8, 2, 0.92);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   text-align: center;
-  transition: border-color 0.12s ease, background 0.12s ease, transform 0.1s ease;
 }
 
-.char-picker__card:hover {
-  border-color: rgba(255, 216, 74, 0.55);
-  background: rgba(255, 216, 74, 0.1);
-}
-
-.char-picker__card.is-selected {
-  border-color: #ffd84a;
-  background: rgba(255, 216, 74, 0.18);
-  box-shadow: 0 0 0 1px rgba(255, 216, 74, 0.35);
-}
-
-.char-picker__swatch {
-  width: 36px;
-  height: 36px;
-  margin: 0 auto 6px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 246, 214, 0.35);
-  box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.18);
-}
-
-.char-picker__name {
-  display: block;
+.skin-picker__brand {
+  margin: 0 0 0.5rem;
   font-family: "Bebas Neue", sans-serif;
-  font-size: 15px;
-  letter-spacing: 0.04em;
-  line-height: 1.1;
+  font-size: clamp(1.6rem, 5vw, 2rem);
+  letter-spacing: 0.08em;
+  color: #ffd84a;
 }
 
-.char-picker__blurb {
+.skin-picker__title {
+  margin: 0 0 0.35rem;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(1.35rem, 4vw, 1.7rem);
+  letter-spacing: 0.06em;
+  color: #fff6d6;
+}
+
+.skin-picker__sub {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  color: rgba(255, 246, 214, 0.7);
+  line-height: 1.4;
+}
+
+.skin-picker__stage {
+  margin: 0 auto 0.9rem;
+  width: min(100%, 320px);
+}
+
+.skin-picker__canvas {
   display: block;
-  margin-top: 3px;
-  font-size: 10px;
-  line-height: 1.25;
-  color: rgba(255, 246, 214, 0.55);
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 216, 74, 0.4);
+  background: radial-gradient(ellipse at 50% 28%, rgba(80, 55, 10, 0.55), rgba(8, 6, 2, 0.96));
+  cursor: grab;
+  touch-action: none;
 }
 
-.char-picker__sel {
-  margin-top: 10px;
-  font-size: 13px;
-  color: rgba(255, 216, 74, 0.9);
-  text-align: center;
-  min-height: 1.2em;
+.skin-picker__canvas:active {
+  cursor: grabbing;
+}
+
+.skin-picker__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(255, 246, 214, 0.55);
+  line-height: 1.35;
+}
+
+.skin-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+  margin-bottom: 1.1rem;
+}
+
+.skin-picker__panel .menu__btn {
+  width: 100%;
+}
+
+.skin-picker__panel .menu__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.skin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.35rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 216, 74, 0.22);
+  background: rgba(255, 246, 214, 0.06);
+  color: #fff6d6;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.skin-card:hover {
+  border-color: rgba(255, 216, 74, 0.5);
+}
+
+.skin-card.is-selected {
+  border-color: #ffd84a;
+  background: rgba(255, 216, 74, 0.16);
+  box-shadow: 0 0 0 1px rgba(255, 216, 74, 0.3);
+}
+
+.skin-card__face {
+  width: 100%;
+  max-width: 88px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.skin-card__name {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  font-family: "Bebas Neue", sans-serif;
+}
+
+@media (max-width: 520px) {
+  .skin-picker__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* Touch controls — layout mobile-first */

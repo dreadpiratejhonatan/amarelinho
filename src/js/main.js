@@ -1,4 +1,4 @@
-import * as THREE from "three";
+﻿import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { Input } from "./input.js";
 import { HUD } from "./hud.js";
@@ -14,9 +14,14 @@ import { Bill, MENU, MENU_ORDER, menuChoice, isBrazilLunch } from "./menu.js";
 import { I18n } from "./i18n.js";
 import { LAYOUT, floorHeightAt } from "./layout.js";
 import { ServeProps, buildTray } from "./serveProps.js";
-import { CLIENT_CHARS, getWaiterPlayables, getPlayable } from "./playableChars.js";
-
-const STAFF_ITEMS = ["beer", "batida", "torresmo", "soda", "pastel"];
+import {
+  applySkinToPlayer,
+  loadSkinId,
+  resolveSkinId,
+  runSkinPicker,
+  saveSkinId,
+  getSkin,
+} from "./skins.js";
 
 class Game {
   constructor() {
@@ -58,11 +63,10 @@ class Game {
     this.serveProps = new ServeProps(this.world);
     this.world._trayBuilder = (itemId) => buildTray(itemId);
     this.player = new Player(this.camera, this.world);
-    this.player.setPlayable(this.settings.data.playableId || "cli_juca");
+    const savedSkin = resolveSkinId(loadSkinId() || this.settings.data.playableId || "miria");
+    applySkinToPlayer(this.player, savedSkin);
     this.touch = isTouchDevice() ? new TouchControls(this.input) : null;
-    this._staffJob = null;
     this._applyQuality();
-    this._initCharPicker();
 
     this.sfx.setVolume(this.settings.data.volume);
     this.sfx.setMusic(this.settings.data.music);
@@ -86,27 +90,27 @@ class Game {
         this.world.cheerCrowd(ama ? 0.92 : 0.45);
         if (ama) this.world.pulseAwning(2.2);
         this.sfx.setMurmurBoost(ama ? 1.6 : 1.15);
-        this.hud.showToast(ama ? "GOOL do Amarelinho!" : "Gol dos visitantes…", 2200);
+        this.hud.showToast(ama ? "GOOL do Amarelinho!" : "Gol dos visitantesâ€¦", 2200);
       } else if (ev.type === "almost") {
         this.sfx.almost();
         this.world.cheerCrowd(0.4);
         this.hud.showToast("Quase!", 1400);
       } else if (ev.type === "boo") {
         this.sfx.boo();
-        this.hud.showToast("Uhhh…", 1400);
+        this.hud.showToast("Uhhhâ€¦", 1400);
       }
     });
     this.world.onRainChange = (on) => {
       this.sfx.setRain(on);
       if (on && (this.state === "playing" || this.state === "dialogue")) {
-        this.hud.showToast("Começou a chover na calçada…", 2400);
+        this.hud.showToast("ComeÃ§ou a chover na calÃ§adaâ€¦", 2400);
       }
     };
 
     this.btnPlay.addEventListener("click", () => {
       this.sfx.resume();
       this.sfx.click();
-      this.start();
+      this._beginFromMenu();
     });
     document.getElementById("btn-pause")?.addEventListener("pointerup", (e) => {
       if (e.button != null && e.button !== 0) return;
@@ -118,6 +122,10 @@ class Game {
     document.getElementById("btn-resume")?.addEventListener("click", () => {
       this.sfx.click();
       this.resume();
+    });
+    document.getElementById("btn-skin")?.addEventListener("click", () => {
+      this.sfx.click();
+      this._openSkinFromPause();
     });
     document.getElementById("btn-menu")?.addEventListener("click", () => {
       this.sfx.click();
@@ -193,7 +201,7 @@ class Game {
 
     const hint = document.getElementById("hud-hint");
     if (hint && isTouchDevice()) {
-      hint.textContent = "Stick esq. anda · stick dir. olha · E fala";
+      hint.textContent = "Stick esq. anda Â· stick dir. olha Â· E fala";
     }
 
     if ("serviceWorker" in navigator) {
@@ -300,10 +308,38 @@ class Game {
       a.download = `amarelinho-noite-${Date.now()}.png`;
       a.click();
       this.progress.markPhoto();
-      this.hud.showToast("Foto salva — lembrança da noite!", 2600);
+      this.hud.showToast("Foto salva â€” lembranÃ§a da noite!", 2600);
     } catch {
-      this.hud.showToast("Não deu pra tirar foto neste browser.", 2200);
+      this.hud.showToast("NÃ£o deu pra tirar foto neste browser.", 2200);
     }
+  }
+
+  async _beginFromMenu() {
+    this.menu.hidden = true;
+    this.menu.setAttribute("aria-hidden", "true");
+    const skinId = await runSkinPicker({
+      force: true,
+      onGesture: () => this.sfx.resume(),
+    });
+    saveSkinId(skinId);
+    this.settings.set("playableId", skinId);
+    applySkinToPlayer(this.player, skinId);
+    this.start();
+  }
+
+  async _openSkinFromPause() {
+    if (this.state !== "paused") return;
+    this.hud.showPause(false);
+    const skinId = await runSkinPicker({
+      force: true,
+      onGesture: () => this.sfx.resume(),
+    });
+    saveSkinId(skinId);
+    this.settings.set("playableId", skinId);
+    applySkinToPlayer(this.player, skinId);
+    const name = getSkin(skinId).name;
+    this.hud.showToast(`Personagem: ${name}`, 2000);
+    this.resume();
   }
 
   start() {
@@ -313,7 +349,6 @@ class Game {
     this._wasComplete = false;
     this._lastCallToast = false;
     this._deliveryPreferId = null;
-    this._clearStaffJob();
     this.serveProps.clearAll();
     this.world._sessionT = 0;
     this.world.nightPhase = 0;
@@ -321,14 +356,8 @@ class Game {
     this._applyQuality();
     this._pickNightEvent();
 
-    const playable = getPlayable(this.settings.data.playableId || "cli_juca");
-    this.player.setPlayable(playable);
-    this.progress.beginNightAs(playable);
-    if (playable.role === "waiter") {
-      this.world.setPlayerWaiterId(playable.id);
-    } else {
-      this.world.setPlayerWaiterId(null);
-    }
+    const skinId = resolveSkinId(loadSkinId() || this.settings.data.playableId || "miria");
+    applySkinToPlayer(this.player, skinId);
 
     this.menu.hidden = true;
     this.menu.setAttribute("aria-hidden", "true");
@@ -342,6 +371,7 @@ class Game {
     this.player.yaw = 0;
     this.player.pitch = -0.06;
     this.player.standUp();
+    if (!this.input.mobile) this.player.cameraMode = "third";
     this.input.requestLock();
     this.touch?.show();
     this.sfx.resume();
@@ -352,18 +382,13 @@ class Game {
     this._refreshMoney();
     this._startTutorial();
 
-    const staff = this.progress.isStaffNight();
     this.hud.showToast(
       this.input.mobile
-        ? staff
-          ? "Turno: atenda mesas · E anota · V troca câmera"
-          : "Stick esquerdo anda · stick direito olha · E pra falar"
-        : staff
-          ? `Turno de ${playable.name}. Sirva 3 mesas. V — 1ª/3ª.`
-          : `Bolso R$ ${this.progress.data.wallet}. V — 1ª/3ª. Siga a missão.`,
+        ? "Stick esquerdo anda Â· stick direito olha Â· E pra falar Â· V cÃ¢mera"
+        : `Bolso R$ ${this.progress.data.wallet}. V â€” 1Âª/3Âª. Siga a missÃ£o.`,
       3200
     );
-    if (this._nightEventLabel && !staff) {
+    if (this._nightEventLabel) {
       setTimeout(() => {
         if (this.state === "playing") this.hud.showToast(this._nightEventLabel, 3800);
       }, 3400);
@@ -375,17 +400,17 @@ class Game {
     const events = [
       {
         id: "derby",
-        label: "Noite de derby na TV — mais gols no placar!",
+        label: "Noite de derby na TV â€” mais gols no placar!",
         apply: () => this.world.setGoalBoost(2.2),
       },
       {
         id: "fabin_promo",
-        label: "Promoção Fabin: batida especial com desconto de amigo.",
+        label: "PromoÃ§Ã£o Fabin: batida especial com desconto de amigo.",
         apply: () => this.world.setGoalBoost(1),
       },
       {
         id: "jukebox_free",
-        label: "Jukebox livre — Val já deixou a batida no ar.",
+        label: "Jukebox livre â€” Val jÃ¡ deixou a batida no ar.",
         apply: () => {
           this.world.setGoalBoost(1);
           const name = this.sfx.nextStation();
@@ -419,12 +444,6 @@ class Game {
   }
 
   _startTutorial() {
-    if (this.progress.isStaffNight()) {
-      this._tutorialStep = 3;
-      this._guideTimer = 14;
-      this.hud.setGuide(true, "① Clientes sentados pedem — E anota · caixa/cozinha busca · entrega");
-      return;
-    }
     if (this.settings.data.seenTutorial && this.settings.data.tutorialDone) {
       this._tutorialStep = 3;
       this._guideTimer = 6;
@@ -433,7 +452,7 @@ class Game {
     }
     this._tutorialStep = 0;
     this._guideTimer = 16;
-    this.hud.setGuide(true, "① Fale com alguém da casa (E)");
+    this.hud.setGuide(true, "â‘  Fale com alguÃ©m da casa (E)");
     this.settings.set("seenTutorial", true);
   }
 
@@ -442,18 +461,18 @@ class Game {
     if (this._tutorialStep === 0 && this.progress.talkedCount() >= 1) {
       this._tutorialStep = 1;
       this._guideTimer = 14;
-      this.hud.setGuide(true, "② Vá à cozinha — fale com o Carlinhos");
+      this.hud.setGuide(true, "â‘¡ VÃ¡ Ã  cozinha â€” fale com o Carlinhos");
     }
     if (this._tutorialStep === 1 && this.progress.data.metCarlinhos) {
       this._tutorialStep = 2;
       this._guideTimer = 14;
-      this.hud.setGuide(true, "③ Peça no caixa e sente numa mesa");
+      this.hud.setGuide(true, "â‘¢ PeÃ§a no caixa e sente numa mesa");
     }
     if (this._tutorialStep === 2 && this.progress.data.ordered && this.progress.data.sat) {
       this._tutorialStep = 3;
       this.settings.set("tutorialDone", true);
       this._guideTimer = 8;
-      this.hud.setGuide(true, "Boa — agora pague a comanda no caixa");
+      this.hud.setGuide(true, "Boa â€” agora pague a comanda no caixa");
     }
   }
 
@@ -496,8 +515,6 @@ class Game {
     this.input.exitLock();
     this.input.clearHeld();
     this.player.standUp();
-    this._clearStaffJob();
-    this.world.setPlayerWaiterId(null);
     this.state = "menu";
     this.menu.hidden = false;
     this.menu.setAttribute("aria-hidden", "false");
@@ -590,7 +607,7 @@ class Game {
 
     if (playing && this.input.consumeCameraToggle()) {
       const mode = this.player.toggleCameraMode();
-      this.hud.showToast(mode === "third" ? "Câmera: 3ª pessoa" : "Câmera: 1ª pessoa", 1400);
+      this.hud.showToast(mode === "third" ? "CÃ¢mera: 3Âª pessoa" : "CÃ¢mera: 1Âª pessoa", 1400);
     } else {
       this.input.consumeCameraToggle();
     }
@@ -610,10 +627,10 @@ class Game {
           this.sfx.glass();
           if (seat) {
             this.serveProps.placeAtSeat(pending.itemId, seat);
-            this.hud.showToast("Pedido na mesa. Saúde!", 2800);
+            this.hud.showToast("Pedido na mesa. SaÃºde!", 2800);
           } else {
             this.serveProps.placeAtCounter(pending.itemId);
-            this.hud.showToast("Pedido no balcão — senta que eu levo a próxima!", 3000);
+            this.hud.showToast("Pedido no balcÃ£o â€” senta que eu levo a prÃ³xima!", 3000);
           }
           this.bill.pendingDelivery = null;
         };
@@ -632,20 +649,15 @@ class Game {
 
     let target = null;
     if (playing) {
-      if (this.progress.isStaffNight()) {
-        this.world.updateStaffOrders(dt);
-        this._updateStaffPrompt();
-      } else if (this.player.sitting) {
-        this.hud.setPrompt(this.input.mobile ? "Toque no E pra levantar" : "Esc ou E — levantar");
+      target = this.world.nearestInteractable(this.player.position);
+      if (this.player.sitting) {
+        this.hud.setPrompt(this.input.mobile ? "Toque no E pra levantar" : "Esc ou E â€” levantar");
+      } else if (target) {
+        this.hud.setPrompt(this.input.mobile ? `Toque no E â€” ${target.label}` : `E â€” ${target.label}`);
+        this.touch?.setPromptActive(true);
       } else {
-        target = this.world.nearestInteractable(this.player.position);
-        if (target) {
-          this.hud.setPrompt(this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`);
-          this.touch?.setPromptActive(true);
-        } else {
-          this.hud.setPrompt("");
-          this.touch?.setPromptActive(false);
-        }
+        this.hud.setPrompt("");
+        this.touch?.setPromptActive(false);
       }
     } else {
       this.hud.setPrompt("");
@@ -653,9 +665,7 @@ class Game {
     }
 
     if (playing && this.input.consumeInteract()) {
-      if (this.progress.isStaffNight()) {
-        this._staffInteract();
-      } else if (this.player.sitting) {
+      if (this.player.sitting) {
         this.player.standUp();
         this.sfx.sit();
         this.hud.showToast("Levantou da mesa.", 1600);
@@ -674,179 +684,13 @@ class Game {
       if (this.world.nightPhase > 0.85 && !this._lastCallToast && playing) {
         this._lastCallToast = true;
         this.sfx.setMurmurBoost(0.7);
-        this.hud.showToast("Última chamada… a noite tá acabando.", 3600);
+        this.hud.showToast("Ãšltima chamadaâ€¦ a noite tÃ¡ acabando.", 3600);
       }
       if (playing) {
         this.sfx.setMurmurBoost(
           this.world.nightPhase > 0.85 ? 0.7 : 1 + this.world.nightPhase * 0.35
         );
       }
-    }
-  }
-
-  _initCharPicker() {
-    const clientsEl = document.getElementById("picker-clients");
-    const waitersEl = document.getElementById("picker-waiters");
-    const selEl = document.getElementById("picker-sel");
-    if (!clientsEl || !waitersEl) return;
-
-    const hex = (n) => `#${(n >>> 0).toString(16).padStart(6, "0")}`;
-    const selected = this.settings.data.playableId || "cli_juca";
-
-    const makeCard = (p, color) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "char-picker__card";
-      btn.dataset.id = p.id;
-      btn.setAttribute("role", "option");
-      btn.innerHTML = `<span class="char-picker__swatch" style="background:${hex(color)}"></span><span class="char-picker__name">${p.name}</span><span class="char-picker__blurb">${p.blurb || ""}</span>`;
-      if (p.id === selected) btn.classList.add("is-selected");
-      btn.addEventListener("click", () => {
-        this.settings.set("playableId", p.id);
-        clientsEl.querySelectorAll(".char-picker__card").forEach((c) => c.classList.remove("is-selected"));
-        waitersEl.querySelectorAll(".char-picker__card").forEach((c) => c.classList.remove("is-selected"));
-        btn.classList.add("is-selected");
-        if (selEl) {
-          selEl.textContent =
-            p.role === "waiter" ? `Turno: ${p.name}` : `Cliente: ${p.name}`;
-        }
-        this.sfx.click();
-      });
-      return btn;
-    };
-
-    for (const c of CLIENT_CHARS) {
-      clientsEl.appendChild(makeCard(c, c.shirt || c.skin || 0xc9a000));
-    }
-    for (const w of getWaiterPlayables()) {
-      waitersEl.appendChild(makeCard(w, w.def?.skin || 0xc9a000));
-    }
-    const cur = getPlayable(selected);
-    if (selEl) {
-      selEl.textContent =
-        cur.role === "waiter" ? `Turno: ${cur.name}` : `Cliente: ${cur.name}`;
-    }
-  }
-
-  _clearStaffJob() {
-    if (this._staffJob?.tray && this.player.mesh) {
-      this.player.mesh.remove(this._staffJob.tray);
-    }
-    this._staffJob = null;
-  }
-
-  _attachStaffTray(itemId) {
-    if (!this.player.mesh) return;
-    if (this._staffJob?.tray) this.player.mesh.remove(this._staffJob.tray);
-    const tray = buildTray(itemId);
-    this.player.mesh.add(tray);
-    if (this._staffJob) this._staffJob.tray = tray;
-  }
-
-  _updateStaffPrompt() {
-    const job = this._staffJob;
-    const pos = this.player.position;
-    let prompt = "";
-    let active = false;
-
-    if (!job) {
-      const hungry = this.world.nearestHungryCustomer(pos);
-      if (hungry) {
-        prompt = this.input.mobile ? "Toque no E — anotar pedido" : "E — anotar pedido";
-        active = true;
-      } else {
-        const target = this.world.nearestInteractable(pos);
-        if (target && target.kind !== "seat") {
-          prompt = this.input.mobile ? `Toque no E — ${target.label}` : `E — ${target.label}`;
-          active = true;
-        } else {
-          prompt = this.input.mobile ? "Procure mesas pedindo" : "Procure clientes pedindo (Garçom!)";
-        }
-      }
-    } else if (job.phase === "fetch") {
-      if (this.world.inStaffPickupZone(pos)) {
-        prompt = this.input.mobile ? "Toque no E — pegar pedido" : "E — pegar no balcão/cozinha";
-        active = true;
-      } else {
-        prompt = "Vá ao caixa ou à cozinha";
-      }
-    } else if (job.phase === "deliver") {
-      const cust = job.customer;
-      const d = cust?.mesh ? pos.distanceTo(cust.mesh.position) : 99;
-      if (d < 2.6) {
-        prompt = this.input.mobile ? "Toque no E — entregar" : "E — entregar pedido";
-        active = true;
-      } else {
-        prompt = "Volte à mesa do cliente";
-      }
-    }
-
-    this.hud.setPrompt(prompt);
-    this.touch?.setPromptActive(active);
-  }
-
-  _staffInteract() {
-    const pos = this.player.position;
-    const job = this._staffJob;
-
-    if (!job) {
-      const hungry = this.world.nearestHungryCustomer(pos);
-      if (hungry) {
-        const itemId = STAFF_ITEMS[Math.floor(Math.random() * STAFF_ITEMS.length)];
-        hungry._wantsOrder = false;
-        hungry._orderWait = 0;
-        hungry.say?.("Pode ser!", 2);
-        this._staffJob = { phase: "fetch", customer: hungry, itemId, tray: null };
-        this.sfx.click();
-        const name = MENU[itemId]?.name || "pedido";
-        this.hud.showToast(`Anotado: ${name}. Busca no caixa ou cozinha.`, 2800);
-        this._refreshObjective();
-        return;
-      }
-      const target = this.world.nearestInteractable(pos);
-      if (target && target.kind !== "seat") {
-        this._interact(target);
-        return;
-      }
-      this.hud.showToast("Espere um cliente sentado pedir.", 2000);
-      return;
-    }
-
-    if (job.phase === "fetch") {
-      if (!this.world.inStaffPickupZone(pos)) {
-        this.hud.showToast("Vá até o caixa (azul) ou a cozinha.", 2200);
-        return;
-      }
-      this._attachStaffTray(job.itemId);
-      job.phase = "deliver";
-      this.sfx.glass();
-      this.hud.showToast("Pedido na bandeja — leve até a mesa.", 2400);
-      return;
-    }
-
-    if (job.phase === "deliver") {
-      const cust = job.customer;
-      if (!cust?.mesh || pos.distanceTo(cust.mesh.position) > 2.6) {
-        this.hud.showToast("Chegue mais perto da mesa.", 1800);
-        return;
-      }
-      if (cust.seat) this.serveProps.placeAtSeat(job.itemId, cust.seat);
-      cust._servedByPlayer = true;
-      cust._wantsOrder = false;
-      cust.say?.("Valeu!", 2);
-      if (job.tray && this.player.mesh) this.player.mesh.remove(job.tray);
-      this._staffJob = null;
-      this.sfx.order();
-      const tip = 4 + Math.floor(Math.random() * 5);
-      this.progress.earn(tip);
-      this.progress.markStaffServe(this.progress.data.staffWaiterId);
-      this._refreshMoney();
-      this._refreshObjective();
-      const n = this.progress.data.staffServes || 0;
-      this.hud.showToast(
-        n >= 3 ? `Turno fechado! Gorjeta R$ ${tip}.` : `Entregue! +R$ ${tip} · ${n}/3`,
-        2800
-      );
     }
   }
 
@@ -864,7 +708,7 @@ class Game {
       this.hud.showToast(`Jukebox: ${name}`, 2400);
     } else if (target.kind === "seat") {
       if (target.claimedBy) {
-        this.hud.showToast("Essa cadeira tá ocupada.", 1600);
+        this.hud.showToast("Essa cadeira tÃ¡ ocupada.", 1600);
         return;
       }
       target.claimedBy = "player";
@@ -874,7 +718,7 @@ class Game {
       this.progress.markSat(elevated);
       this._refreshObjective();
       this.hud.showToast(
-        elevated ? "Sentou no salão elevado. Boa vista." : "Sentou. Esc ou E para levantar.",
+        elevated ? "Sentou no salÃ£o elevado. Boa vista." : "Sentou. Esc ou E para levantar.",
         2200
       );
     } else if (target.kind === "counter") {
@@ -904,31 +748,31 @@ class Game {
     const prefer = this.progress.bestMoodWaiterId();
     const delayFactor = this.progress.serveDelayFactor(prefer);
     let delay = (3.2 + Math.random() * 2) * delayFactor;
-    // Humor baixo: chance de “tô ocupado”
+    // Humor baixo: chance de â€œtÃ´ ocupadoâ€
     if (prefer && this.progress.serveBusyChance(prefer) > Math.random()) {
       delay += 2.5 + Math.random() * 2;
-      this.hud.showToast("Garçom ocupado… segura aí.", 2200);
+      this.hud.showToast("GarÃ§om ocupadoâ€¦ segura aÃ­.", 2200);
     } else if (prefer && this.progress.mood(prefer) >= 2) {
-      this.hud.showToast(`Pedido anotado — ${prefer} tá de boa, vem rápido.`, 2400);
+      this.hud.showToast(`Pedido anotado â€” ${prefer} tÃ¡ de boa, vem rÃ¡pido.`, 2400);
     }
     this._deliveryPreferId = prefer;
     this._deliveryTimer = delay;
     this._refreshMoney();
     this._refreshObjective();
-    this.hud.showToast(`${def.emoji} ${def.name} — R$ ${def.price}`, 2600);
+    this.hud.showToast(`${def.emoji} ${def.name} â€” R$ ${def.price}`, 2600);
   }
 
   _menuChoices(includeFood = true) {
     const ids = MENU_ORDER.filter((id) => includeFood || MENU[id].cat !== "food");
     return ids.slice(0, 10).map((id) => {
       const c = menuChoice(id, {
-        next: { text: `${MENU[id].emoji} Anotado — R$ ${MENU[id].price}.` },
+        next: { text: `${MENU[id].emoji} Anotado â€” R$ ${MENU[id].price}.` },
       });
       return c;
     });
   }
 
-  /** Pedido com o Val: pode escolher o que quiser — sempre vem gelo e limão. */
+  /** Pedido com o Val: pode escolher o que quiser â€” sempre vem gelo e limÃ£o. */
   _valOrderChoices() {
     const glass = MENU.gelo_limao;
     const lunch = isBrazilLunch();
@@ -940,28 +784,28 @@ class Game {
     return [
       asGeloLimao(
         `${MENU.beer.emoji} ${MENU.beer.name}`,
-        `Cerveja? Olha… ${glass.emoji} copo com gelo e limão. R$ ${glass.price}. É o que tem.`
+        `Cerveja? Olhaâ€¦ ${glass.emoji} copo com gelo e limÃ£o. R$ ${glass.price}. Ã‰ o que tem.`
       ),
       asGeloLimao(
         `${MENU.batida.emoji} ${MENU.batida.name}`,
-        `Batida? Sonha. ${glass.emoji} Gelo e limão saindo. R$ ${glass.price}.`
+        `Batida? Sonha. ${glass.emoji} Gelo e limÃ£o saindo. R$ ${glass.price}.`
       ),
       asGeloLimao(
         `${MENU.water.emoji} ${MENU.water.name}`,
-        `Água? Quase. ${glass.emoji} Copo com gelo e limão. R$ ${glass.price}.`
+        `Ãgua? Quase. ${glass.emoji} Copo com gelo e limÃ£o. R$ ${glass.price}.`
       ),
       asGeloLimao(
-        "🧊 Copo só com gelo",
+        "ðŸ§Š Copo sÃ³ com gelo",
         lunch
-          ? "Na HORA DO ALMOÇO tu pede copo SÓ com gelo?! Tá de sacanagem? Vai gelo E limão e acaba essa conversa."
-          : "Só gelo? Aqui é gelo E limão, irmão. Sem discussão.",
+          ? "Na HORA DO ALMOÃ‡O tu pede copo SÃ“ com gelo?! TÃ¡ de sacanagem? Vai gelo E limÃ£o e acaba essa conversa."
+          : "SÃ³ gelo? Aqui Ã© gelo E limÃ£o, irmÃ£o. Sem discussÃ£o.",
         lunch
       ),
       asGeloLimao(
-        `${glass.emoji} ${glass.name} — R$ ${glass.price}`,
-        `${glass.emoji} Fechado. Gelo e limão, como tem que ser. R$ ${glass.price}.`
+        `${glass.emoji} ${glass.name} â€” R$ ${glass.price}`,
+        `${glass.emoji} Fechado. Gelo e limÃ£o, como tem que ser. R$ ${glass.price}.`
       ),
-      { label: "Deixa pra lá", next: { text: "Quando quiser o copo, é só chamar." } },
+      { label: "Deixa pra lÃ¡", next: { text: "Quando quiser o copo, Ã© sÃ³ chamar." } },
     ];
   }
 
@@ -973,7 +817,7 @@ class Game {
     const mood = this.progress.mood(def.id);
     const greet =
       mood >= 2
-        ? pickLine(def.lines.tipThanks || def.lines.greet) + " (você é gente boa)"
+        ? pickLine(def.lines.tipThanks || def.lines.greet) + " (vocÃª Ã© gente boa)"
         : pickLine(def.lines.greet);
     const story = pickLine(def.lines.story || def.lines.chat);
     const orderNext =
@@ -986,16 +830,16 @@ class Game {
             text: pickLine(def.lines.order),
             choices: [
               ...this._menuChoices(def.id === "carlinhos"),
-              { label: "Deixa pra lá", next: { text: "Quando quiser, é só chamar." } },
+              { label: "Deixa pra lÃ¡", next: { text: "Quando quiser, Ã© sÃ³ chamar." } },
             ],
           };
     const choices = [
       {
-        label: "E aí, tudo bem?",
+        label: "E aÃ­, tudo bem?",
         next: { text: pickLine(def.lines.chat) },
       },
       {
-        label: "Me conta uma história",
+        label: "Me conta uma histÃ³ria",
         next: { text: story },
       },
       {
@@ -1021,26 +865,26 @@ class Game {
           next: {
             text:
               def.id === "toninho"
-                ? "Nem pensa. Gorjeta primeiro — aí a gente conversa de sorriso."
-                : "Ainda não. Melhora o clima com a gente primeiro.",
+                ? "Nem pensa. Gorjeta primeiro â€” aÃ­ a gente conversa de sorriso."
+                : "Ainda nÃ£o. Melhora o clima com a gente primeiro.",
           },
         });
       }
     } else if (def.beat && this.progress.hasBeat(def.id)) {
       choices.splice(2, 0, {
-        label: "(já ouvi essa história)",
-        next: { text: "Você já conhece esse lado da casa. Bom sinal." },
+        label: "(jÃ¡ ouvi essa histÃ³ria)",
+        next: { text: "VocÃª jÃ¡ conhece esse lado da casa. Bom sinal." },
       });
     }
 
-    // Evento "promoção Fabin": oferece o beat logo no greet se ainda não feito
+    // Evento "promoÃ§Ã£o Fabin": oferece o beat logo no greet se ainda nÃ£o feito
     if (this._nightEvent === "fabin_promo" && def.id === "fabin" && !this.progress.hasBeat("fabin")) {
       const already = choices.some((c) => c.label === def.beat.label);
       if (!already) choices.splice(1, 0, this._beatChoice(def));
     }
 
     choices.push({
-      label: "Só passando pra cumprimentar.",
+      label: "SÃ³ passando pra cumprimentar.",
       next: { text: this._byeLine(def.id) },
     });
 
@@ -1060,7 +904,7 @@ class Game {
           this._refreshMoney();
         } else if (action === "val_gelo_puto") {
           this.progress.annoy("val");
-          this.hud.showToast("Val ficou puto no almoço… mas o copo vem igual.", 2800);
+          this.hud.showToast("Val ficou puto no almoÃ§oâ€¦ mas o copo vem igual.", 2800);
           this._addOrder("gelo_limao");
         } else if (action?.startsWith("beat:")) {
           this._resolveBeatAction(def, action);
@@ -1095,7 +939,7 @@ class Game {
             },
             {
               label: "Deixa quieto",
-              next: { text: "…melhor." },
+              next: { text: "â€¦melhor." },
             },
           ],
         },
@@ -1114,7 +958,7 @@ class Game {
               next: { text: b.steps.accept },
             },
             {
-              label: "Recusar com educação",
+              label: "Recusar com educaÃ§Ã£o",
               action: "beat:fabin:refuse",
               next: { text: b.steps.refuse },
             },
@@ -1135,7 +979,7 @@ class Game {
                 text: b.steps.mid,
                 choices: [
                   {
-                    label: "E aí?",
+                    label: "E aÃ­?",
                     action: "beat:oliveira:done",
                     next: { text: b.steps.end },
                   },
@@ -1144,7 +988,7 @@ class Game {
             },
             {
               label: "Outra hora",
-              next: { text: "Quando quiser, meu filho. O causo não vai embora." },
+              next: { text: "Quando quiser, meu filho. O causo nÃ£o vai embora." },
             },
           ],
         },
@@ -1183,7 +1027,7 @@ class Game {
                 text: b.steps.mid,
                 choices: [
                   {
-                    label: "Vou falar com o Zé",
+                    label: "Vou falar com o ZÃ©",
                     action: "beat:ney:done",
                     next: { text: b.steps.end },
                   },
@@ -1212,8 +1056,8 @@ class Game {
               next: { text: b.steps.bolinho },
             },
             {
-              label: "Deixa pra lá",
-              next: { text: "Boné firme. Volta quando a fome apertar." },
+              label: "Deixa pra lÃ¡",
+              next: { text: "BonÃ© firme. Volta quando a fome apertar." },
             },
           ],
         },
@@ -1222,7 +1066,7 @@ class Game {
 
     return {
       label: b.label,
-      next: { text: "…" },
+      next: { text: "â€¦" },
     };
   }
 
@@ -1240,7 +1084,7 @@ class Game {
         this._refreshMoney();
       }
       this.progress.markBeat("toninho");
-      this.hud.showToast("Toninho quase sorriu…", 2600);
+      this.hud.showToast("Toninho quase sorriuâ€¦", 2600);
       return;
     }
     if (def.id === "fabin") {
@@ -1251,10 +1095,10 @@ class Game {
           this.hud.showToast(this.i18n.t("noMoney"), 2200);
           return;
         }
-        // Pedido com preço promocional: adiciona item e ajusta
+        // Pedido com preÃ§o promocional: adiciona item e ajusta
         const defItem = this.bill.add("batida_especial");
         if (defItem) {
-          // Corrige preço na última linha
+          // Corrige preÃ§o na Ãºltima linha
           const last = this.bill.items[this.bill.items.length - 1];
           last.price = price;
           this._ordered = true;
@@ -1268,16 +1112,16 @@ class Game {
           this._deliveryTimer = (3.2 + Math.random() * 2) * this.progress.serveDelayFactor("fabin");
           this._deliveryPreferId = "fabin";
           this._refreshMoney();
-          this.hud.showToast(`🍹 Promoção — R$ ${price}`, 2600);
+          this.hud.showToast(`ðŸ¹ PromoÃ§Ã£o â€” R$ ${price}`, 2600);
         }
       } else {
-        this.hud.showToast("Fabin entendeu. Oferta de pé.", 2200);
+        this.hud.showToast("Fabin entendeu. Oferta de pÃ©.", 2200);
       }
       return;
     }
     if (def.id === "oliveira") {
       this.progress.markBeat("oliveira");
-      this.hud.showToast("Causo da calçada ouvido.", 2400);
+      this.hud.showToast("Causo da calÃ§ada ouvido.", 2400);
       return;
     }
     if (def.id === "val") {
@@ -1288,15 +1132,15 @@ class Game {
       this.progress.data.waiterMood.val = Math.min(3, m + 1);
       this.progress.save();
       this.progress._syncAchievements();
-      this.hud.showToast(`Val no cabo · Jukebox: ${name}`, 2800);
+      this.hud.showToast(`Val no cabo Â· Jukebox: ${name}`, 2800);
       return;
     }
     if (def.id === "ney") {
       this.progress.markBeat("ney");
       this.progress.markNeyHint();
-      this.hud.showToast("Ney falou do Seu Zé — vai na calçada.", 3000);
+      this.hud.showToast("Ney falou do Seu ZÃ© â€” vai na calÃ§ada.", 3000);
       this._guideTimer = 8;
-      this.hud.setGuide(true, "→ Seu Zé na calçada");
+      this.hud.setGuide(true, "â†’ Seu ZÃ© na calÃ§ada");
       return;
     }
     if (def.id === "carlinhos") {
@@ -1330,12 +1174,12 @@ class Game {
                 next: { text: story },
               },
               {
-                label: "Como tá a noite?",
+                label: "Como tÃ¡ a noite?",
                 next: { text: pickLine(def.lines.chat) },
               },
               {
-                label: "Valeu, Zé",
-                next: { text: "Volta sempre. A cadeira é tua." },
+                label: "Valeu, ZÃ©",
+                next: { text: "Volta sempre. A cadeira Ã© tua." },
               },
             ],
           },
@@ -1354,13 +1198,13 @@ class Game {
   _byeLine(id) {
     const map = {
       toninho: "Hm. Ok.",
-      fabin: "Qualquer coisa é só chamar, campeão!",
+      fabin: "Qualquer coisa Ã© sÃ³ chamar, campeÃ£o!",
       oliveira: "Vai com Deus, meu filho.",
-      val: "Beleza. Qualquer coisa: gelo e limão.",
+      val: "Beleza. Qualquer coisa: gelo e limÃ£o.",
       ney: "Volta sempre, hein!",
       carlinhos: "Fechou. Volta na chapa quando quiser.",
     };
-    return map[id] || "Até mais.";
+    return map[id] || "AtÃ© mais.";
   }
 
   _orderAtCounter() {
@@ -1372,21 +1216,21 @@ class Game {
     const unpaid = this.bill.count() > 0 && !this.bill.paid;
     const choices = this._menuChoices(true).map((c) => ({
       ...c,
-      next: { text: `${MENU[c.action].emoji} Saindo — R$ ${MENU[c.action].price}.` },
+      next: { text: `${MENU[c.action].emoji} Saindo â€” R$ ${MENU[c.action].price}.` },
     }));
     if (unpaid) {
       const canPay = this.progress.canAfford(total);
       choices.push({
-        label: canPay ? `Pagar comanda — R$ ${total}` : `Pagar R$ ${total} (falta grana)`,
+        label: canPay ? `Pagar comanda â€” R$ ${total}` : `Pagar R$ ${total} (falta grana)`,
         next: {
           text: canPay
             ? `Fechado: R$ ${total}. Valeu, volta sempre!`
-            : "Sem grana no bolso pra fechar essa conta…",
+            : "Sem grana no bolso pra fechar essa contaâ€¦",
         },
         action: canPay ? "pay" : null,
       });
     }
-    choices.push({ label: "Deixa pra lá", next: { text: "Quando quiser, é só chamar." } });
+    choices.push({ label: "Deixa pra lÃ¡", next: { text: "Quando quiser, Ã© sÃ³ chamar." } });
 
     this.dialogue.start(
       {

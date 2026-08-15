@@ -16,7 +16,7 @@ export function isTouchDevice() {
 }
 
 function overlayBlocksLook() {
-  const ids = ["dialogue", "pause", "settings", "achievements", "summary", "menu"];
+  const ids = ["dialogue", "pause", "settings", "achievements", "summary", "menu", "skin-picker"];
   for (const id of ids) {
     const el = document.getElementById(id);
     if (el && !el.hidden) return true;

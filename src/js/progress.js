@@ -31,10 +31,6 @@ const DEFAULT = () => ({
   nightStoryIndex: 0,
   waiterBeats: {},
   neyHintZe: false,
-  nightRole: "client",
-  staffServes: 0,
-  staffWaiterId: null,
-  staffShifts: {},
 });
 
 export class Progress {
@@ -219,41 +215,8 @@ export class Progress {
     this.data.nightComplete = false;
     this.data.waiterBeats = {};
     this.data.neyHintZe = false;
-    this.data.staffServes = 0;
-    this.data.staffWaiterId = null;
-    this.data.nightRole = "client";
     this.data.nightStoryIndex = (this.data.nightStoryIndex || 0) + 1;
     this.save();
-  }
-
-  beginNightAs(playable) {
-    this.data.nightRole = playable?.role === "waiter" ? "waiter" : "client";
-    this.data.staffWaiterId = this.data.nightRole === "waiter" ? playable.id : null;
-    this.data.staffServes = 0;
-    this.save();
-  }
-
-  isStaffNight() {
-    return this.data.nightRole === "waiter";
-  }
-
-  earn(amount) {
-    if (amount <= 0) return;
-    this.data.wallet += amount;
-    this.save();
-  }
-
-  markStaffServe(waiterId) {
-    this.data.staffServes = (this.data.staffServes || 0) + 1;
-    if (this.data.staffServes >= 3 && waiterId) {
-      if (!this.data.staffShifts) this.data.staffShifts = {};
-      this.data.staffShifts[waiterId] = true;
-      if (!this.data.nightComplete) {
-        this.data.nightComplete = true;
-        this.data.nightsFinished += 1;
-      }
-    }
-    this._syncAchievements();
   }
 
   talkedCount() {
@@ -271,7 +234,6 @@ export class Progress {
   }
 
   _checkComplete() {
-    if (this.isStaffNight()) return;
     if (
       this.data.ordered &&
       this.data.sat &&
@@ -287,14 +249,6 @@ export class Progress {
   }
 
   currentObjective() {
-    if (this.isStaffNight()) {
-      const n = this.data.staffServes || 0;
-      if (this.data.nightComplete) {
-        return "Turno completo — explora ou volta ao menu";
-      }
-      if (n <= 0) return "Turno: anote o pedido de um cliente sentado (E)";
-      return `Turno: sirva mesas (${n}/3)`;
-    }
     if (this.data.nightComplete) {
       if (this.batidasCount() < 4) return "Bônus: prove as 4 batidas do cardápio";
       if (!this.allWaitersTalked()) return "Bônus: converse com todos os garçons";
@@ -319,7 +273,7 @@ export class Progress {
     return {
       talked: this.talkedCount(),
       allStaff: this.allWaitersTalked(),
-      ordered: this.isStaffNight() ? this.data.staffServes : this.data.drinksOrdered,
+      ordered: this.data.drinksOrdered,
       spent: billTotal ?? this.data.totalSpent,
       lines: billLines || [],
       elevated: this.data.satElevated,
@@ -329,7 +283,6 @@ export class Progress {
       batidas: this.batidasCount(),
       beats: this.beatsCount(),
       achievements: Object.keys(this.data.achievements || {}).length,
-      staff: this.isStaffNight(),
     };
   }
 

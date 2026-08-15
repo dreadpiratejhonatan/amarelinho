@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { buildPlayableMesh, getPlayable } from "./playableChars.js";
+import { getSkin, loadFaceTexture, resolveSkinId } from "./skins.js";
 
 export class Player {
   constructor(camera, world) {
@@ -13,15 +13,15 @@ export class Player {
     this.onGround = true;
     this.sitting = false;
     this.seat = null;
-    this.cameraMode = "first"; // first | third
-    this.playable = null;
+    this.cameraMode = "first";
+    this.skinId = "miria";
     this.mesh = null;
+    this.mats = null;
     this._forward = new THREE.Vector3();
     this._right = new THREE.Vector3();
     this._wish = new THREE.Vector3();
-    this._camOffset = new THREE.Vector3();
     this._lookTarget = new THREE.Vector3();
-    this._ray = new THREE.Raycaster();
+    this.buildMesh();
   }
 
   get eyePosition() {
@@ -36,19 +36,175 @@ export class Player {
     return this.world.getFloorHeight?.(this.position.x, this.position.z) ?? 0;
   }
 
+  applySkin(skinId) {
+    const def = getSkin(skinId);
+    this.skinId = def.id;
+    if (!this.mats) return;
+    this.mats.suit.color.setHex(def.suit);
+    this.mats.shirt.color.setHex(def.shirt);
+    this.mats.skin.color.setHex(def.skin);
+    this.mats.tie.color.setHex(def.tie);
+    if (this.mats.hair && def.hair != null) this.mats.hair.color.setHex(def.hair);
+    const faceMat = this.mats.face;
+    if (faceMat && def.face) {
+      const token = def.id;
+      loadFaceTexture(def.face).then((tex) => {
+        if (this.skinId !== token || !tex) return;
+        faceMat.map = tex;
+        faceMat.color.setHex(0xffffff);
+        faceMat.needsUpdate = true;
+      });
+    }
+  }
+
   setPlayable(playableOrId) {
-    const playable = typeof playableOrId === "string" ? getPlayable(playableOrId) : playableOrId;
-    this.playable = playable;
+    const id = typeof playableOrId === "string" ? playableOrId : playableOrId?.id;
+    this.applySkin(resolveSkinId(id || this.skinId));
+  }
+
+  buildMesh() {
     if (this.mesh) {
       this.world.group.remove(this.mesh);
       this.mesh = null;
     }
-    this.mesh = buildPlayableMesh(playable);
+    const def = getSkin(this.skinId);
+    const female = def.body === "female";
+
+    const suit = new THREE.MeshStandardMaterial({ color: def.suit, roughness: 0.65 });
+    const shirt = new THREE.MeshStandardMaterial({ color: def.shirt, roughness: 0.8 });
+    const skin = new THREE.MeshStandardMaterial({ color: def.skin, roughness: 0.55 });
+    const tie = new THREE.MeshStandardMaterial({ color: def.tie, roughness: 0.7 });
+    const hair = new THREE.MeshStandardMaterial({
+      color: def.hair ?? 0x2a1810,
+      roughness: 0.85,
+    });
+    const face = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.55,
+      metalness: 0,
+      side: THREE.FrontSide,
+    });
+    this.mats = { suit, shirt, skin, tie, hair, face };
+
+    this.mesh = new THREE.Group();
     this.mesh.name = "playerAvatar";
-    // Esconde bolha de chat do mesh de NPC
-    if (this.mesh.userData.chatBubble) this.mesh.userData.chatBubble.visible = false;
+
+    // Proporções femininas: torso mais estreito/baixo, ombros menores
+    const torsoTop = female ? 0.14 : 0.17;
+    const torsoBot = female ? 0.11 : 0.12;
+    const torsoH = female ? 0.68 : 0.72;
+    const torsoY = female ? 1.22 : 1.28;
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(torsoTop, torsoBot, torsoH, 12), suit);
+    torso.position.y = torsoY;
+
+    const shoulderR = female ? 0.06 : 0.075;
+    const shoulderX = female ? 0.155 : 0.19;
+    const shoulderY = female ? 1.52 : 1.6;
+    const shoulderGeo = new THREE.SphereGeometry(shoulderR, 10, 8);
+    const leftShoulder = new THREE.Mesh(shoulderGeo, suit);
+    leftShoulder.position.set(-shoulderX, shoulderY, 0);
+    const rightShoulder = new THREE.Mesh(shoulderGeo, suit);
+    rightShoulder.position.set(shoulderX, shoulderY, 0);
+
+    const shirtStrip = new THREE.Mesh(
+      new THREE.CylinderGeometry(female ? 0.045 : 0.055, female ? 0.038 : 0.045, female ? 0.52 : 0.6, 8),
+      shirt
+    );
+    shirtStrip.position.set(0, female ? 1.26 : 1.32, 0.12);
+
+    // Accent (laço / detalhe) — sem gravata masculina
+    const accent = female
+      ? new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), tie)
+      : new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.34, 6), tie);
+    if (female) {
+      accent.position.set(0, 1.48, 0.14);
+    } else {
+      accent.rotation.x = Math.PI;
+      accent.position.set(0, 1.36, 0.16);
+    }
+
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(female ? 0.042 : 0.05, female ? 0.048 : 0.055, 0.12, 8),
+      skin
+    );
+    neck.position.y = female ? 1.58 : 1.68;
+
+    const headScale = female ? 0.26 : 0.28;
+    const headY = female ? 1.76 : 1.88;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(headScale, headScale * 1.05, headScale), skin);
+    head.position.y = headY;
+
+    const facePlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(headScale * 0.95, headScale * 1.02),
+      face
+    );
+    facePlane.position.set(0, headY, headScale * 0.54);
+    this.facePlane = facePlane;
+
+    // Cabelo longo / médio (só feminino)
+    const hairParts = [];
+    if (female) {
+      const scalp = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), hair);
+      scalp.position.set(0, headY + 0.04, -0.02);
+      scalp.scale.set(1.05, 0.95, 1.1);
+      const bangs = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.08), hair);
+      bangs.position.set(0, headY + 0.08, 0.12);
+      const leftLock = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.55, 8), hair);
+      leftLock.position.set(-0.14, headY - 0.22, -0.02);
+      const rightLock = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.55, 8), hair);
+      rightLock.position.set(0.14, headY - 0.22, -0.02);
+      const back = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.5, 10), hair);
+      back.position.set(0, headY - 0.18, -0.12);
+      hairParts.push(scalp, bangs, leftLock, rightLock, back);
+    }
+
+    const legR = female ? 0.055 : 0.07;
+    const legH = female ? 0.9 : 0.95;
+    const armR = female ? 0.042 : 0.05;
+    const armH = female ? 0.92 : 1.0;
+    const leftLeg = this._makeLimb(legR, legH, suit, legR * 0.75);
+    leftLeg.position.set(female ? -0.075 : -0.09, female ? 0.9 : 0.95, 0);
+    const rightLeg = this._makeLimb(legR, legH, suit, legR * 0.75);
+    rightLeg.position.set(female ? 0.075 : 0.09, female ? 0.9 : 0.95, 0);
+    const leftArm = this._makeLimb(armR, armH, suit, armR * 0.8, skin);
+    leftArm.position.set(female ? -0.19 : -0.23, female ? 1.5 : 1.58, 0);
+    const rightArm = this._makeLimb(armR, armH, suit, armR * 0.8, skin);
+    rightArm.position.set(female ? 0.19 : 0.23, female ? 1.5 : 1.58, 0);
+
+    this.mesh.add(
+      torso,
+      leftShoulder,
+      rightShoulder,
+      shirtStrip,
+      accent,
+      neck,
+      head,
+      facePlane,
+      ...hairParts,
+      leftLeg,
+      rightLeg,
+      leftArm,
+      rightArm
+    );
+    this.mesh.traverse((m) => {
+      if (m.isMesh) m.castShadow = true;
+    });
+    // Mesh feminino um pouco mais baixo no mundo
+    if (female) this.mesh.scale.setScalar(0.96);
     this.world.group.add(this.mesh);
+    this.applySkin(resolveSkinId(this.skinId));
     this._syncMesh();
+  }
+
+  _makeLimb(rTop, h, material, rBottom, tipMat) {
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, h, 8), material);
+    mesh.position.y = -h / 2;
+    group.add(mesh);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(rBottom * 1.3, 8, 6), tipMat || material);
+    tip.position.y = -h;
+    group.add(tip);
+    return group;
   }
 
   toggleCameraMode() {
@@ -139,10 +295,9 @@ export class Player {
   _syncMesh() {
     if (!this.mesh) return;
     const fy = this._floorY();
-    const sitY = this.sitting ? 0.35 : 0;
+    const sitY = this.sitting ? -0.55 : 0;
     this.mesh.position.set(this.position.x, fy + sitY, this.position.z);
-    this.mesh.rotation.y = this.yaw;
-    // 1ª pessoa: esconde corpo (evita ver a própria cabeça)
+    this.mesh.rotation.y = this.yaw + Math.PI;
     this.mesh.visible = this.cameraMode === "third";
   }
 
@@ -155,7 +310,6 @@ export class Player {
       return;
     }
 
-    // 3ª pessoa: atrás e acima
     const dist = 3.2;
     const height = 1.35;
     const back = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -165,7 +319,6 @@ export class Player {
       this.position.z + back.z * dist
     );
 
-    // Ray curto pra não atravessar paredes (usa colliders como AABB simples)
     let camPos = ideal.clone();
     const from = new THREE.Vector3(this.position.x, this._floorY() + 1.4, this.position.z);
     const dir = new THREE.Vector3().subVectors(ideal, from);
@@ -180,7 +333,6 @@ export class Player {
 
     this.camera.position.copy(camPos);
     this._lookTarget.set(this.position.x, this._floorY() + 1.35, this.position.z);
-    // Pitch ajusta o olhar um pouco
     this._lookTarget.y += -this.pitch * 0.6;
     this.camera.lookAt(this._lookTarget);
   }

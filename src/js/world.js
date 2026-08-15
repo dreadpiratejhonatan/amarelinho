@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { WAITERS, REGULAR, buildWaiterMesh, buildCustomerMesh, randomCustomerDef } from "./npcs.js";
 import { NpcAgent } from "./npcAi.js";
-import { LAYOUT, floorHeightAt, inRect } from "./layout.js";
+import { LAYOUT, floorHeightAt } from "./layout.js";
 import { buildBarFromPlan, placePlanTables } from "./barZones.js";
 
 function mat(color, opts = {}) {
@@ -796,85 +796,10 @@ export class World {
     if (seat && seat.claimedBy === agent) seat.claimedBy = null;
   }
 
-  /** Esconde o garçom que o jogador está controlando. */
-  setPlayerWaiterId(id) {
-    this._restorePlayerWaiter();
-    this.playerWaiterId = id || null;
-    if (!id) return;
-    for (const a of this.npcAgents) {
-      if (a.kind !== "waiter" || a.interactable?.id !== id) continue;
-      a.mesh.visible = false;
-      a._hiddenAsPlayer = true;
-      a.state = "idle";
-      a.target = null;
-      a.timer = 1e9;
-      if (a.interactable) {
-        a._savedRadius = a.interactable.radius;
-        a.interactable.radius = 0;
-      }
-    }
-  }
-
-  _restorePlayerWaiter() {
-    for (const a of this.npcAgents) {
-      if (!a._hiddenAsPlayer) continue;
-      a._hiddenAsPlayer = false;
-      a.mesh.visible = true;
-      a.timer = 0.5 + Math.random();
-      if (a.interactable && a._savedRadius != null) {
-        a.interactable.radius = a._savedRadius;
-      }
-    }
-    this.playerWaiterId = null;
-  }
-
-  /** Clientes sentados que querem pedir (modo garçom). */
-  getHungryCustomers() {
-    return this.npcAgents.filter(
-      (a) => a.kind === "customer" && a.state === "sit" && a.seat && a._wantsOrder
-    );
-  }
-
-  nearestHungryCustomer(pos, maxDist = 2.4) {
-    let best = null;
-    let bestD = Infinity;
-    for (const a of this.getHungryCustomers()) {
-      const d = pos.distanceTo(a.mesh.position);
-      if (d < maxDist && d < bestD) {
-        best = a;
-        bestD = d;
-      }
-    }
-    return best;
-  }
-
-  inStaffPickupZone(pos) {
-    return inRect(pos.x, pos.z, LAYOUT.blue) || inRect(pos.x, pos.z, LAYOUT.kitchen);
-  }
-
-  updateStaffOrders(dt) {
-    for (const a of this.npcAgents) {
-      if (a.kind !== "customer" || a.state !== "sit") continue;
-      if (a._wantsOrder || a._servedByPlayer) continue;
-      if (a._orderNeed == null) {
-        a._orderNeed = this.playerWaiterId ? 3.5 + Math.random() * 5 : 8 + Math.random() * 10;
-      }
-      a._orderWait = (a._orderWait || 0) + dt;
-      if (a._orderWait > a._orderNeed) {
-        a._wantsOrder = true;
-        a.say?.("Garçom!", 2.2);
-      }
-    }
-  }
-
   /** Envia um garçom até a mesa do jogador (comanda). */
   dispatchServe(job) {
     let waiters = this.npcAgents.filter(
-      (a) =>
-        a.kind === "waiter" &&
-        a.state !== "serve" &&
-        !a._hiddenAsPlayer &&
-        a.interactable?.id !== "carlinhos"
+      (a) => a.kind === "waiter" && a.state !== "serve" && a.interactable?.id !== "carlinhos"
     );
     if (!waiters.length) return false;
     const preferId = job.preferId;

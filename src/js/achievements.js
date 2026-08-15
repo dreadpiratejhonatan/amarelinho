@@ -15,13 +15,6 @@ export const ACHIEVEMENTS = [
   { id: "toninho_smile", name: "Quase sorriu", desc: "Faça o Toninho quase sorrir", icon: "😐" },
   { id: "fabin_promo", name: "Promoção da casa", desc: "Aceite (ou recuse) a oferta do Fabin", icon: "😄" },
   { id: "carlinhos_secret", name: "Segredo da chapa", desc: "Peça o especial do Carlinhos", icon: "🧢" },
-  { id: "turno_toninho", name: "Turno do Toninho", desc: "Complete um turno como Toninho", icon: "😐" },
-  { id: "turno_fabin", name: "Turno do Fabin", desc: "Complete um turno como Fabin", icon: "😄" },
-  { id: "turno_oliveira", name: "Turno do Seu Oliveira", desc: "Complete um turno como Oliveira", icon: "🕶️" },
-  { id: "turno_val", name: "Turno do Val", desc: "Complete um turno como Val", icon: "🎧" },
-  { id: "turno_ney", name: "Turno do Ney", desc: "Complete um turno como Ney", icon: "🧹" },
-  { id: "turno_carlinhos", name: "Turno do Carlinhos", desc: "Complete um turno na chapa", icon: "🧢" },
-  { id: "all_turnos", name: "Seis turnos", desc: "Fez os 6 turnos da casa", icon: "🏆" },
 ];
 
 export function evaluateAchievements(data) {
@@ -51,11 +44,5 @@ export function evaluateAchievements(data) {
   if (beats.toninho) mark("toninho_smile");
   if (beats.fabin) mark("fabin_promo");
   if (beats.carlinhos) mark("carlinhos_secret");
-
-  const shifts = data.staffShifts || {};
-  for (const id of beatIds) {
-    if (shifts[id]) mark(`turno_${id}`);
-  }
-  if (beatIds.every((id) => shifts[id])) mark("all_turnos");
   return unlocked;
 }

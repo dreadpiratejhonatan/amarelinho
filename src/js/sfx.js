@@ -1,4 +1,6 @@
 /** Sons leves de UI + ambience de bar via Web Audio (sem arquivos externos). */
+import { Soundtrack } from "./soundtrack.js";
+
 export class Sfx {
   constructor() {
     this.ctx = null;
@@ -17,11 +19,12 @@ export class Sfx {
     this._rainSrc = null;
     this._rainGain = null;
     this._murmurBoost = 1;
+    this._ost = new Soundtrack();
   }
 
   nextStation() {
     this.station = (this.station + 1) % 3;
-    this.setMusic(this.station !== 2);
+    // Station 2 = sem batida; OST continua se musicOn (Ajustes)
     return ["Batida da casa", "Samba no pé", "Só papo"][this.station];
   }
 
@@ -32,6 +35,8 @@ export class Sfx {
 
   setMusic(on) {
     this.musicOn = !!on;
+    // OST segue o toggle dos Ajustes; jukebox station 2 só silencia a batida
+    this._ost.setEnabled(this.musicOn);
   }
 
   _ensure() {
@@ -314,6 +319,10 @@ export class Sfx {
       this._musicTimer = setTimeout(scheduleMusic, beat());
     };
     this._musicTimer = setTimeout(scheduleMusic, 800);
+
+    // Trilha ambient estilo Minecraft (pads + piano esparso)
+    this._ost.start(ctx, out);
+    this._ost.setEnabled(this.musicOn);
   }
 
   _murmurBurst() {
@@ -349,6 +358,7 @@ export class Sfx {
   stopAmbience() {
     this._ambienceWanted = false;
     this.setRain(false);
+    this._ost.stop();
     if (this._murmurTimer) {
       clearTimeout(this._murmurTimer);
       this._murmurTimer = null;

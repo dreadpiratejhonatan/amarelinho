@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 process.chdir(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIST = "dist";
 const HOST = path.join("release", "hostgator-amarelinho");
-const CACHE = "v32";
+const CACHE = "v35";
 
 fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(path.join(DIST, "styles"), { recursive: true });
@@ -27,6 +27,15 @@ if (fs.existsSync("assets")) {
     const from = path.join("assets", name);
     if (fs.statSync(from).isFile()) {
       fs.copyFileSync(from, path.join(DIST, "assets", name));
+    }
+  }
+}
+if (fs.existsSync("faces")) {
+  fs.mkdirSync(path.join(DIST, "faces"), { recursive: true });
+  for (const name of fs.readdirSync("faces")) {
+    const from = path.join("faces", name);
+    if (fs.statSync(from).isFile() && name.endsWith(".png")) {
+      fs.copyFileSync(from, path.join(DIST, "faces", name));
     }
   }
 }
